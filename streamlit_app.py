@@ -34,6 +34,7 @@ spreadsheet = client.open("polla_mundial")
 sheet = spreadsheet.sheet1
 config_sheet = spreadsheet.worksheet("CONFIG")
 partidos_sheet = spreadsheet.worksheet("PARTIDOS")
+resultados_sheet = spreadsheet.worksheet("RESULTADOS")
 
 # ==================================
 # CONFIG
@@ -338,56 +339,111 @@ for partido in partidos:
 # ==================================
 # RANKING
 # ==================================
-def calcular_puntos():
+def calcular_ranking():
 
     ranking = []
 
-    if df.empty:
+    try:
+
+        resultados_df = pd.DataFrame(
+            resultados_sheet.get_all_records()
+        )
+
+    except Exception:
+
+        return ranking
+
+    if resultados_df.empty:
+        return ranking
+
+    resultados = {}
+
+    for _, row in resultados_df.iterrows():
+
+        partido = str(row["ID"]).strip()
+        resultado = str(row["Resultado"]).strip().upper()
+
+        if resultado:
+            resultados[partido] = resultado
+
+    if not resultados:
         return ranking
 
     for _, fila in df.iterrows():
 
-        puntos = 0
+        nombre_jugador = fila["Nombre"]
 
-        for col in df.columns:
+        aciertos = 0
+        evaluados = 0
 
-            if col == "Nombre":
+        for partido, resultado_real in resultados.items():
+
+            if partido not in df.columns:
                 continue
 
-            if pd.notna(fila[col]) and fila[col] != "":
-                puntos += 1
+            respuesta = fila.get(partido)
+
+            if pd.isna(respuesta) or str(respuesta).strip() == "":
+                continue
+
+            evaluados += 1
+
+            if str(respuesta).strip().upper() == resultado_real:
+                aciertos += 1
+
+        porcentaje = 0
+
+        if evaluados > 0:
+            porcentaje = round(
+                (aciertos / evaluados) * 100,
+                2
+            )
 
         ranking.append(
             (
-                fila["Nombre"],
-                puntos
+                nombre_jugador,
+                aciertos,
+                evaluados,
+                porcentaje
             )
         )
 
     ranking.sort(
-        key=lambda x: x[1],
+        key=lambda x: x[3],
         reverse=True
     )
 
     return ranking
 
+# ==================================
+# RANKING COMPLETO
+# ==================================
 
-st.header("🏆 Ranking")
+with st.expander("🏆 Ver Ranking Completo"):
 
-ranking = calcular_puntos()
+    ranking = calcular_ranking()
 
-if ranking:
+    if ranking:
 
-    tabla = pd.DataFrame(
-        ranking,
-        columns=["Nombre", "Puntos"]
-    )
+        tabla = pd.DataFrame(
+            ranking,
+            columns=[
+                "Nombre",
+                "Aciertos",
+                "Partidos Evaluados",
+                "% Acierto"
+            ]
+        )
 
-    st.dataframe(
-        tabla,
-        use_container_width=True
-    )
+        tabla.index = tabla.index + 1
 
-else:
+        st.dataframe(
+            tabla,
+            use_container_width=True
+        )
 
-    st.info("Todavía no hay participantes.")
+    else:
+
+        st.info(
+            "Todavía no existen resultados para calcular el ranking."
+        )
