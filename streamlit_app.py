@@ -248,7 +248,28 @@ def render_partido(partido_id, equipo_a, equipo_b):
                     st.session_state[key_sel] = "A"
 
     with col2:
-        st.markdown("### VS")
+
+    st.markdown("### VS")
+
+    st.write("")
+
+    if st.session_state[key_sel] == "E":
+
+        st.success("EMPATE")
+
+    else:
+
+        if st.button(
+            "Empate",
+            key=key_sel + "_E"
+        ):
+
+            if (
+                not st.session_state[key_lock]
+                and partido_abierto(partido_id)
+            ):
+
+                st.session_state[key_sel] = "E"
 
     with col3:
 
@@ -313,7 +334,6 @@ def render_partido(partido_id, equipo_a, equipo_b):
         st.caption("🔒 Partido cerrado")
 
     st.divider()
-
 
 # ==================================
 # MOSTRAR PARTIDOS
