@@ -249,9 +249,9 @@ def render_partido(partido_id, equipo_a, equipo_b):
 
     with col2:
 
-    st.markdown("### VS")
+        st.markdown("### VS")
 
-    st.write("")
+        st.write("")
 
     if st.session_state[key_sel] == "E":
 
