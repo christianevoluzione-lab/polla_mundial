@@ -144,6 +144,7 @@ if not df.empty and "Nombre" in df.columns:
         df["Nombre"]
         .astype(str)
         .str.upper()
+        .str.strip()
         .tolist()
     )
 
@@ -157,9 +158,22 @@ if nombre not in usuarios:
         nombre
     )
 
-    st.success(f"Bienvenido {nombre}")
+    st.success(
+        f"Usuario {nombre} registrado correctamente"
+    )
 
     st.rerun()
+if nombre in usuarios:
+
+    st.warning(
+        "Este nombre ya existe. "
+        "Se cargarán tus pronósticos guardados."
+    )
+else:
+
+    st.info(
+        f"Bienvenido nuevamente {nombre}"
+    )
 
 # ==================================
 # RECARGAR
