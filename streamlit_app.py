@@ -39,11 +39,14 @@ def partido_abierto(partido_id):
 # CARGAR RESPUESTAS
 # ==============================
 data = sheet.get_all_records()
+
+if not data:
+    st.error("Google Sheets devolvió una lista vacía")
+    st.stop()
+
 df = pd.DataFrame(data)
 
-df.columns = df.columns.str.strip()
-
-st.write("Columnas detectadas:", df.columns.tolist())
+df.columns = [str(c).strip() for c in df.columns]
 
 # ==============================
 # USUARIO
