@@ -29,18 +29,26 @@ credentials = Credentials.from_service_account_info(
 
 client = gspread.authorize(credentials)
 
-sheet = client.open("polla_mundial").sheet1
-config_sheet = client.open("polla_mundial").worksheet("CONFIG")
+spreadsheet = client.open("polla_mundial")
+
+sheet = spreadsheet.sheet1
+config_sheet = spreadsheet.worksheet("CONFIG")
+partidos_sheet = spreadsheet.worksheet("PARTIDOS")
 
 # ==================================
 # CONFIG
 # ==================================
-config_data = config_sheet.get_all_records()
-
 config = {}
 
-for row in config_data:
-    config[str(row["clave"]).strip()] = str(row["valor"]).strip()
+try:
+    config_data = config_sheet.get_all_records()
+
+    for row in config_data:
+        config[str(row["clave"]).strip()] = str(row["valor"]).strip()
+
+except Exception:
+    pass
+
 
 def partido_abierto(partido_id):
 
@@ -49,36 +57,70 @@ def partido_abierto(partido_id):
 
     return config.get(partido_id, "abierto") == "abierto"
 
-# ==================================
-# CARGAR DATOS
-# ==================================
-partidos_sheet = client.open("polla_mundial").worksheet("PARTIDOS")
 
+# ==================================
+# CARGAR PARTIDOS
+# ==================================
 partidos = partidos_sheet.get_all_records()
 
-# Crear automáticamente columnas P1...Pn en RESPUESTAS
+# ==================================
+# ASEGURAR CABECERAS RESPUESTAS
+# ==================================
 headers = sheet.row_values(1)
 
 if not headers:
+
     headers = ["Nombre"]
 
-cambios = False
+    for partido in partidos:
+        headers.append(str(partido["ID"]).strip())
 
-for partido in partidos:
+    sheet.update("A1", [headers])
 
-    partido_id = str(partido["ID"]).strip()
+else:
 
-    if partido_id not in headers:
+    cambios = False
 
-        headers.append(partido_id)
+    if "Nombre" not in headers:
+        headers.insert(0, "Nombre")
         cambios = True
 
-if cambios:
+    for partido in partidos:
 
-    sheet.delete_rows(1)
-    sheet.insert_row(headers, 1)
+        partido_id = str(partido["ID"]).strip()
 
-    df = cargar_dataframe()
+        if partido_id not in headers:
+            headers.append(partido_id)
+            cambios = True
+
+    if cambios:
+        sheet.update("A1", [headers])
+
+
+# ==================================
+# CARGAR RESPUESTAS
+# ==================================
+def cargar_dataframe():
+
+    data = sheet.get_all_records()
+
+    if len(data) == 0:
+
+        headers_local = sheet.row_values(1)
+
+        return pd.DataFrame(columns=headers_local)
+
+    df_local = pd.DataFrame(data)
+
+    df_local.columns = [
+        str(c).strip()
+        for c in df_local.columns
+    ]
+
+    return df_local
+
+
+df = cargar_dataframe()
 
 # ==================================
 # USUARIO
@@ -91,41 +133,20 @@ if not nombre:
 nombre = nombre.strip().upper()
 
 # ==================================
-# ASEGURAR COLUMNA NOMBRE
+# REGISTRAR USUARIO
 # ==================================
-headers = sheet.row_values(1)
-
-if not headers:
-
-    sheet.update(
-        "A1",
-        [["Nombre"]]
-    )
-
-    headers = ["Nombre"]
-
-if "Nombre" not in headers:
-
-    headers.insert(0, "Nombre")
-
-    sheet.delete_rows(1)
-
-    sheet.insert_row(headers, 1)
-
-# ==================================
-# REGISTRAR USUARIO SI NO EXISTE
-# ==================================
-usuarios_existentes = []
+usuarios = []
 
 if not df.empty and "Nombre" in df.columns:
-    usuarios_existentes = (
+
+    usuarios = (
         df["Nombre"]
         .astype(str)
         .str.upper()
         .tolist()
     )
 
-if nombre not in usuarios_existentes:
+if nombre not in usuarios:
 
     nueva_fila = len(sheet.get_all_values()) + 1
 
@@ -147,40 +168,20 @@ df = cargar_dataframe()
 # ==================================
 # GUARDAR RESPUESTA
 # ==================================
-def guardar_respuesta(nombre, partido, valor):
+def guardar_respuesta(nombre_usuario, partido_id, valor):
 
     data = sheet.get_all_records()
 
     nombres = [
-        str(row["Nombre"]).upper()
-        for row in data
+        str(r["Nombre"]).upper()
+        for r in data
     ]
 
-    if nombre in nombres:
-
-        fila = nombres.index(nombre) + 2
-
-    else:
-
-        fila = len(data) + 2
-
-        sheet.update_cell(
-            fila,
-            1,
-            nombre
-        )
+    fila = nombres.index(nombre_usuario) + 2
 
     columnas = sheet.row_values(1)
 
-    if partido not in columnas:
-
-        st.error(
-            f"No existe la columna {partido}"
-        )
-
-        return
-
-    col = columnas.index(partido) + 1
+    col = columnas.index(partido_id) + 1
 
     sheet.update_cell(
         fila,
@@ -188,8 +189,9 @@ def guardar_respuesta(nombre, partido, valor):
         valor
     )
 
+
 # ==================================
-# PARTIDOS
+# RENDER PARTIDO
 # ==================================
 def render_partido(partido_id, equipo_a, equipo_b):
 
@@ -202,11 +204,10 @@ def render_partido(partido_id, equipo_a, equipo_b):
     if key_lock not in st.session_state:
         st.session_state[key_lock] = False
 
-    # Recuperar selección previa
+    # Cargar selección previa
     if (
         not df.empty
         and "Nombre" in df.columns
-        and nombre in df["Nombre"].astype(str).str.upper().values
         and partido_id in df.columns
     ):
 
@@ -216,27 +217,27 @@ def render_partido(partido_id, equipo_a, equipo_b):
             .str.upper() == nombre
         ]
 
-        valor = fila[partido_id].values[0]
+        if not fila.empty:
 
-        if pd.notna(valor) and valor != "":
+            valor = fila[partido_id].values[0]
 
-            st.session_state[key_sel] = valor
-            st.session_state[key_lock] = True
+            if pd.notna(valor) and valor != "":
 
-    col1, col2, col3, col4 = st.columns([3,1,3,1])
+                st.session_state[key_sel] = valor
+                st.session_state[key_lock] = True
 
-    # Equipo A
+    col1, col2, col3, col4 = st.columns([3, 1, 3, 1])
+
     with col1:
 
         if st.session_state[key_sel] == "A":
-
             st.success(equipo_a)
 
         else:
 
             if st.button(
                 equipo_a,
-                key=key_sel + "A"
+                key=f"{partido_id}_A"
             ):
 
                 if (
@@ -245,22 +246,19 @@ def render_partido(partido_id, equipo_a, equipo_b):
                 ):
                     st.session_state[key_sel] = "A"
 
-    # VS
     with col2:
         st.markdown("### VS")
 
-    # Equipo B
     with col3:
 
         if st.session_state[key_sel] == "B":
-
             st.success(equipo_b)
 
         else:
 
             if st.button(
                 equipo_b,
-                key=key_sel + "B"
+                key=f"{partido_id}_B"
             ):
 
                 if (
@@ -269,7 +267,6 @@ def render_partido(partido_id, equipo_a, equipo_b):
                 ):
                     st.session_state[key_sel] = "B"
 
-    # Guardar
     with col4:
 
         if (
@@ -279,7 +276,7 @@ def render_partido(partido_id, equipo_a, equipo_b):
 
             if st.button(
                 "✅",
-                key=key_sel + "save"
+                key=f"{partido_id}_save"
             ):
 
                 if st.session_state[key_sel]:
@@ -294,7 +291,6 @@ def render_partido(partido_id, equipo_a, equipo_b):
 
                     st.rerun()
 
-    # Empate
     if st.session_state[key_sel] == "E":
 
         st.success("EMPATE")
@@ -303,7 +299,7 @@ def render_partido(partido_id, equipo_a, equipo_b):
 
         if st.button(
             "Empate",
-            key=key_sel + "E"
+            key=f"{partido_id}_empate"
         ):
 
             if (
@@ -317,8 +313,9 @@ def render_partido(partido_id, equipo_a, equipo_b):
 
     st.divider()
 
+
 # ==================================
-# PARTIDOS DESDE GOOGLE SHEETS
+# MOSTRAR PARTIDOS
 # ==================================
 grupo_actual = ""
 
@@ -350,8 +347,6 @@ def calcular_puntos():
 
     for _, fila in df.iterrows():
 
-        nombre_jugador = fila["Nombre"]
-
         puntos = 0
 
         for col in df.columns:
@@ -364,7 +359,7 @@ def calcular_puntos():
 
         ranking.append(
             (
-                nombre_jugador,
+                fila["Nombre"],
                 puntos
             )
         )
@@ -375,6 +370,7 @@ def calcular_puntos():
     )
 
     return ranking
+
 
 st.header("🏆 Ranking")
 
@@ -394,6 +390,4 @@ if ranking:
 
 else:
 
-    st.info(
-        "Todavía no hay participantes."
-    )
+    st.info("Todavía no hay participantes.")
