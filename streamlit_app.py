@@ -227,11 +227,15 @@ def render_partido(partido_id, equipo_a, equipo_b):
                 st.session_state[key_sel] = valor
                 st.session_state[key_lock] = True
 
-    col1, col2, col3, col4 = st.columns([3, 1, 3, 1])
+    col1, col2, col3, col4 = st.columns([3, 2, 3, 1])
 
+    # ==================================
+    # EQUIPO A
+    # ==================================
     with col1:
 
         if st.session_state[key_sel] == "A":
+
             st.success(equipo_a)
 
         else:
@@ -245,35 +249,47 @@ def render_partido(partido_id, equipo_a, equipo_b):
                     not st.session_state[key_lock]
                     and partido_abierto(partido_id)
                 ):
+
                     st.session_state[key_sel] = "A"
 
+    # ==================================
+    # VS + EMPATE
+    # ==================================
     with col2:
 
-        st.markdown("### VS")
+        st.markdown(
+            "<h3 style='text-align:center;'>VS</h3>",
+            unsafe_allow_html=True
+        )
 
         st.write("")
 
-    if st.session_state[key_sel] == "E":
+        if st.session_state[key_sel] == "E":
 
-        st.success("EMPATE")
+            st.success("EMPATE")
 
-    else:
+        else:
 
-        if st.button(
-            "Empate",
-            key=key_sel + "_E"
-        ):
-
-            if (
-                not st.session_state[key_lock]
-                and partido_abierto(partido_id)
+            if st.button(
+                "Empate",
+                key=f"{partido_id}_E",
+                use_container_width=True
             ):
 
-                st.session_state[key_sel] = "E"
+                if (
+                    not st.session_state[key_lock]
+                    and partido_abierto(partido_id)
+                ):
 
+                    st.session_state[key_sel] = "E"
+
+    # ==================================
+    # EQUIPO B
+    # ==================================
     with col3:
 
         if st.session_state[key_sel] == "B":
+
             st.success(equipo_b)
 
         else:
@@ -287,8 +303,12 @@ def render_partido(partido_id, equipo_a, equipo_b):
                     not st.session_state[key_lock]
                     and partido_abierto(partido_id)
                 ):
+
                     st.session_state[key_sel] = "B"
 
+    # ==================================
+    # GUARDAR
+    # ==================================
     with col4:
 
         if (
@@ -313,24 +333,11 @@ def render_partido(partido_id, equipo_a, equipo_b):
 
                     st.rerun()
 
-    if st.session_state[key_sel] == "E":
-
-        st.success("EMPATE")
-
-    else:
-
-        if st.button(
-            "Empate",
-            key=f"{partido_id}_empate"
-        ):
-
-            if (
-                not st.session_state[key_lock]
-                and partido_abierto(partido_id)
-            ):
-                st.session_state[key_sel] = "E"
-
+    # ==================================
+    # PARTIDO CERRADO
+    # ==================================
     if not partido_abierto(partido_id):
+
         st.caption("🔒 Partido cerrado")
 
     st.divider()
