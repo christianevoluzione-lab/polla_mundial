@@ -6,7 +6,12 @@ from google.oauth2.service_account import Credentials
 # ==================================
 # CONFIG STREAMLIT
 # ==================================
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="Polla Mundial 2026",
+    page_icon="🏆",
+    layout="wide"
+)
+
 st.title("🏆 Polla Mundial 2026")
 
 # ==================================
@@ -47,26 +52,33 @@ def partido_abierto(partido_id):
 # ==================================
 # CARGAR DATOS
 # ==================================
-def cargar_dataframe():
+partidos_sheet = client.open("polla_mundial").worksheet("PARTIDOS")
 
-    data = sheet.get_all_records()
+partidos = partidos_sheet.get_all_records()
 
-    if len(data) == 0:
+# Crear automáticamente columnas P1...Pn en RESPUESTAS
+headers = sheet.row_values(1)
 
-        headers = sheet.row_values(1)
+if not headers:
+    headers = ["Nombre"]
 
-        if not headers:
-            headers = ["Nombre"]
+cambios = False
 
-        return pd.DataFrame(columns=headers)
+for partido in partidos:
 
-    df = pd.DataFrame(data)
+    partido_id = str(partido["ID"]).strip()
 
-    df.columns = [str(c).strip() for c in df.columns]
+    if partido_id not in headers:
 
-    return df
+        headers.append(partido_id)
+        cambios = True
 
-df = cargar_dataframe()
+if cambios:
+
+    sheet.delete_rows(1)
+    sheet.insert_row(headers, 1)
+
+    df = cargar_dataframe()
 
 # ==================================
 # USUARIO
@@ -306,20 +318,24 @@ def render_partido(partido_id, equipo_a, equipo_b):
     st.divider()
 
 # ==================================
-# PARTIDOS
+# PARTIDOS DESDE GOOGLE SHEETS
 # ==================================
-partidos = [
-    ("P1", "México", "Sudáfrica"),
-    ("P2", "Corea", "Checa"),
-    ("P3", "Checa", "Sudáfrica"),
-]
+grupo_actual = ""
 
 for partido in partidos:
 
+    grupo = str(partido["GRUPO"]).strip()
+
+    if grupo and grupo != grupo_actual:
+
+        st.header(f"🏆 {grupo}")
+
+        grupo_actual = grupo
+
     render_partido(
-        partido[0],
-        partido[1],
-        partido[2]
+        str(partido["ID"]).strip(),
+        str(partido["Equipo A"]).strip(),
+        str(partido["Equipo B"]).strip()
     )
 
 # ==================================
