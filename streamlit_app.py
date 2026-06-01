@@ -41,6 +41,10 @@ def partido_abierto(partido_id):
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 
+df.columns = df.columns.str.strip()
+
+st.write("Columnas detectadas:", df.columns.tolist())
+
 # ==============================
 # USUARIO
 # ==============================
