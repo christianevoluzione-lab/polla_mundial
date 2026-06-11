@@ -17,7 +17,6 @@ scope = [
 # ==================================
 # CONEXIÓN
 # ==================================
-
 @st.cache_resource
 def get_client():
     credentials = Credentials.from_service_account_info(
@@ -26,30 +25,13 @@ def get_client():
     )
     return gspread.authorize(credentials)
 
-try:
-    client = get_client()
-    st.success("Cliente Google conectado")
-except Exception as e:
-    st.error(f"Error cliente: {e}")
-    st.stop()
+client = get_client()
 
-try:
-    spreadsheet = client.open_by_key(
-        "1G2fNVyWBURB1Q4LG4POU65gpv3nW5wu80ivoHUSqSUM"
-    )
-    st.success(f"Spreadsheet encontrado: {spreadsheet.title}")
-except Exception as e:
-    st.error(f"Error spreadsheet: {e}")
-    st.stop()
+@st.cache_resource
+def get_spreadsheet():
+    return client.open_by_key("1G2fNVyWBURB1Q4LG4POU65gpv3nW5wu80ivoHUSqSUM")
 
-try:
-    st.write(
-        "Hojas:",
-        [h.title for h in spreadsheet.worksheets()]
-    )
-except Exception as e:
-    st.error(f"Error leyendo hojas: {e}")
-    st.stop()
+spreadsheet = get_spreadsheet()
 
 sheet = spreadsheet.worksheet("RESPUESTAS")
 sheet_partidos = spreadsheet.worksheet("PARTIDOS")
@@ -58,11 +40,10 @@ sheet_resultados = spreadsheet.worksheet("RESULTADOS")
 # ==================================
 # CARGA
 # ==================================
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=600)
 def cargar_todo():
     return {
         "respuestas": sheet.get_all_records(),
-        "headers": sheet.row_values(1),
         "partidos": sheet_partidos.get_all_records(),
         "config": sheet_config.get_all_records(),
         "resultados": sheet_resultados.get_all_records()
@@ -92,7 +73,6 @@ if nombre not in usuarios:
     fila = len(df) + 2
     sheet.update(f"A{fila}", [[nombre]])
     st.success(f"Usuario {nombre} registrado")
-    st.cache_data.clear()
     st.rerun()
 
 st.info(f"Hola {nombre}")
@@ -153,7 +133,6 @@ def guardar_masivo():
 
     st.success("✅ Pronósticos guardados")
     st.session_state["cambios"] = {}
-    st.cache_data.clear()
     st.rerun()
 
 # ==================================
