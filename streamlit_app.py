@@ -10,7 +10,7 @@ st.set_page_config(page_title="Polla Mundial", layout="wide")
 st.title("🏆 Polla Mundial 2026")
 
 scope = [
-    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
@@ -70,8 +70,7 @@ usuarios = df["Nombre"].astype(str).str.upper().tolist() if not df.empty else []
 
 # Registro
 if nombre not in usuarios:
-    fila = len(df) + 2
-    sheet.update(f"A{fila}", [[nombre]])
+    sheet.append_row([nombre])
     st.success(f"Usuario {nombre} registrado")
     st.rerun()
 
@@ -122,7 +121,9 @@ def guardar_masivo():
 
         fila = nombres.index(nombre) + 2
         col = columnas.index(pid) + 1
-        letra = chr(64 + col)
+        from gspread.utils import rowcol_to_a1
+
+celda = rowcol_to_a1(fila, col)
 
         updates.append({
             "range": f"{letra}{fila}",
