@@ -117,18 +117,38 @@ def guardar_masivo():
 
     updates = []
 
+    from gspread.utils import rowcol_to_a1
+
+def guardar_masivo():
+
+    cambios = st.session_state["cambios"]
+
+    if not cambios:
+        st.warning("No hay cambios")
+        return
+
+    nombres = df["Nombre"].astype(str).str.upper().tolist()
+    columnas = df.columns.tolist()
+
+    updates = []
+
     for pid, valor in cambios.items():
 
         fila = nombres.index(nombre) + 2
         col = columnas.index(pid) + 1
-        from gspread.utils import rowcol_to_a1
 
-celda = rowcol_to_a1(fila, col)
+        celda = rowcol_to_a1(fila, col)
 
         updates.append({
-            "range": f"{letra}{fila}",
+            "range": celda,
             "values": [[valor]]
         })
+
+    sheet.batch_update(updates)
+
+    st.success("✅ Pronósticos guardados")
+    st.session_state["cambios"] = {}
+    st.rerun()
 
     sheet.batch_update(updates)
 
