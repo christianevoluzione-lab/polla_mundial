@@ -17,6 +17,7 @@ scope = [
 # ==================================
 # CONEXIÓN
 # ==================================
+
 @st.cache_resource
 def get_client():
     credentials = Credentials.from_service_account_info(
@@ -25,19 +26,35 @@ def get_client():
     )
     return gspread.authorize(credentials)
 
-client = get_client()
+try:
+    client = get_client()
+    st.success("Cliente Google conectado")
+except Exception as e:
+    st.error(f"Error cliente: {e}")
+    st.stop()
 
-@st.cache_resource
-def get_spreadsheet():
-    return client.open_by_key("1G2fNVyWBURB1Q4LG4POU65gpv3nW5wu80ivoHUSqSUM")
+try:
+    spreadsheet = client.open_by_key(
+        "1G2fNVyWBURB1Q4LG4POU65gpv3nW5wu80ivoHUSqSUM"
+    )
+    st.success(f"Spreadsheet encontrado: {spreadsheet.title}")
+except Exception as e:
+    st.error(f"Error spreadsheet: {e}")
+    st.stop()
 
-spreadsheet = get_spreadsheet()
+try:
+    st.write(
+        "Hojas:",
+        [h.title for h in spreadsheet.worksheets()]
+    )
+except Exception as e:
+    st.error(f"Error leyendo hojas: {e}")
+    st.stop()
 
-sheet = spreadsheet.sheet1
+sheet = spreadsheet.worksheet("RESPUESTAS")
 sheet_partidos = spreadsheet.worksheet("PARTIDOS")
 sheet_config = spreadsheet.worksheet("CONFIG")
 sheet_resultados = spreadsheet.worksheet("RESULTADOS")
-
 # ==================================
 # CARGA
 # ==================================
