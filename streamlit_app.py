@@ -54,6 +54,8 @@ def cargar_todo():
 data = cargar_todo()
 
 df = pd.DataFrame(data["respuestas"])
+if not df.empty:
+    df.columns = df.columns.str.strip()
 partidos = data["partidos"]
 
 config = {str(r["clave"]).strip(): str(r["valor"]).strip() for r in data["config"]}
@@ -119,21 +121,6 @@ def guardar_masivo():
 
     updates = []
 
-    from gspread.utils import rowcol_to_a1
-
-def guardar_masivo():
-
-    cambios = st.session_state["cambios"]
-
-    if not cambios:
-        st.warning("No hay cambios")
-        return
-
-    nombres = df["Nombre"].astype(str).str.upper().tolist()
-    columnas = df.columns.tolist()
-
-    updates = []
-
     for pid, valor in cambios.items():
 
         fila = nombres.index(nombre) + 2
@@ -151,13 +138,6 @@ def guardar_masivo():
     st.success("✅ Pronósticos guardados")
     st.session_state["cambios"] = {}
     st.rerun()
-
-    sheet.batch_update(updates)
-
-    st.success("✅ Pronósticos guardados")
-    st.session_state["cambios"] = {}
-    st.rerun()
-
 # ==================================
 # RENDER
 # ==================================
