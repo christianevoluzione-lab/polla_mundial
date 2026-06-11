@@ -1,4 +1,4 @@
-import streamlit as st
+deimport streamlit as st
 import pandas as pd
 import gspread
 
@@ -150,7 +150,7 @@ def guardar_masivo():
 
     st.success("✅ Pronósticos guardados")
     st.session_state["cambios"] = {}
-    st.rerun(
+    st.rerun()
 # ==================================
 # RENDER
 # ==================================
