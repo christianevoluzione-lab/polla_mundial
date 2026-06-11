@@ -119,9 +119,18 @@ def guardar_masivo():
     nombres = df["Nombre"].astype(str).str.upper().tolist()
     columnas = df.columns.tolist()
 
+    fila_usuario = df[df["Nombre"].str.upper() == nombre]
+
     updates = []
 
     for pid, valor in cambios.items():
+
+        # Verificar si ya existe un pronóstico guardado
+        if not fila_usuario.empty:
+            valor_actual = fila_usuario.iloc[0].get(pid)
+
+            if pd.notna(valor_actual) and str(valor_actual).strip() != "":
+                continue  # No permitir sobrescribir
 
         fila = nombres.index(nombre) + 2
         col = columnas.index(pid) + 1
@@ -133,11 +142,15 @@ def guardar_masivo():
             "values": [[valor]]
         })
 
+    if not updates:
+        st.warning("Todos esos partidos ya fueron guardados.")
+        return
+
     sheet.batch_update(updates)
 
     st.success("✅ Pronósticos guardados")
     st.session_state["cambios"] = {}
-    st.rerun()
+    st.rerun(
 # ==================================
 # RENDER
 # ==================================
