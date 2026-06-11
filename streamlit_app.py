@@ -4,124 +4,59 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # ==================================
-# CONFIG STREAMLIT
+# CONFIG
 # ==================================
-st.set_page_config(
-    page_title="Polla Mundial 2026",
-    page_icon="🏆",
-    layout="wide"
-)
-
+st.set_page_config(page_title="Polla Mundial", layout="wide")
 st.title("🏆 Polla Mundial 2026")
 
-# ==================================
-# GOOGLE SHEETS
-# ==================================
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
 ]
 
-credentials = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"],
-    scopes=scope
-)
+# ==================================
+# CONEXIÓN
+# ==================================
+@st.cache_resource
+def get_client():
+    credentials = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scope
+    )
+    return gspread.authorize(credentials)
 
-client = gspread.authorize(credentials)
+client = get_client()
 
-spreadsheet = client.open("polla_mundial")
+@st.cache_resource
+def get_spreadsheet():
+    return client.open_by_key("1G2fNVyWBURB1Q4LG4POU65gpv3nW5wu80ivoHUSqSUM")
+
+spreadsheet = get_spreadsheet()
 
 sheet = spreadsheet.sheet1
-config_sheet = spreadsheet.worksheet("CONFIG")
-partidos_sheet = spreadsheet.worksheet("PARTIDOS")
-resultados_sheet = spreadsheet.worksheet("RESULTADOS")
+sheet_partidos = spreadsheet.worksheet("PARTIDOS")
+sheet_config = spreadsheet.worksheet("CONFIG")
+sheet_resultados = spreadsheet.worksheet("RESULTADOS")
 
 # ==================================
-# CONFIG
+# CARGA
 # ==================================
-config = {}
+@st.cache_data(ttl=60)
+def cargar_todo():
+    return {
+        "respuestas": sheet.get_all_records(),
+        "headers": sheet.row_values(1),
+        "partidos": sheet_partidos.get_all_records(),
+        "config": sheet_config.get_all_records(),
+        "resultados": sheet_resultados.get_all_records()
+    }
 
-try:
-    config_data = config_sheet.get_all_records()
+data = cargar_todo()
 
-    for row in config_data:
-        config[str(row["clave"]).strip()] = str(row["valor"]).strip()
+df = pd.DataFrame(data["respuestas"])
+partidos = data["partidos"]
 
-except Exception:
-    pass
-
-
-def partido_abierto(partido_id):
-
-    if config.get("estado", "abierto") == "cerrado":
-        return False
-
-    return config.get(partido_id, "abierto") == "abierto"
-
-
-# ==================================
-# CARGAR PARTIDOS
-# ==================================
-partidos = partidos_sheet.get_all_records()
-
-# ==================================
-# ASEGURAR CABECERAS RESPUESTAS
-# ==================================
-headers = sheet.row_values(1)
-
-if not headers:
-
-    headers = ["Nombre"]
-
-    for partido in partidos:
-        headers.append(str(partido["ID"]).strip())
-
-    sheet.update("A1", [headers])
-
-else:
-
-    cambios = False
-
-    if "Nombre" not in headers:
-        headers.insert(0, "Nombre")
-        cambios = True
-
-    for partido in partidos:
-
-        partido_id = str(partido["ID"]).strip()
-
-        if partido_id not in headers:
-            headers.append(partido_id)
-            cambios = True
-
-    if cambios:
-        sheet.update("A1", [headers])
-
-
-# ==================================
-# CARGAR RESPUESTAS
-# ==================================
-def cargar_dataframe():
-
-    data = sheet.get_all_records()
-
-    if len(data) == 0:
-
-        headers_local = sheet.row_values(1)
-
-        return pd.DataFrame(columns=headers_local)
-
-    df_local = pd.DataFrame(data)
-
-    df_local.columns = [
-        str(c).strip()
-        for c in df_local.columns
-    ]
-
-    return df_local
-
-
-df = cargar_dataframe()
+config = {str(r["clave"]).strip(): str(r["valor"]).strip() for r in data["config"]}
 
 # ==================================
 # USUARIO
@@ -133,225 +68,108 @@ if not nombre:
 
 nombre = nombre.strip().upper()
 
-# ==================================
-# REGISTRAR USUARIO
-# ==================================
-usuarios = []
+usuarios = df["Nombre"].astype(str).str.upper().tolist() if not df.empty else []
 
-if not df.empty and "Nombre" in df.columns:
-
-    usuarios = (
-        df["Nombre"]
-        .astype(str)
-        .str.upper()
-        .str.strip()
-        .tolist()
-    )
-
+# Registro
 if nombre not in usuarios:
-
-    nueva_fila = len(sheet.get_all_values()) + 1
-
-    sheet.update_cell(
-        nueva_fila,
-        1,
-        nombre
-    )
-
-    st.success(
-        f"Usuario {nombre} registrado correctamente"
-    )
-
+    fila = len(df) + 2
+    sheet.update(f"A{fila}", [[nombre]])
+    st.success(f"Usuario {nombre} registrado")
+    st.cache_data.clear()
     st.rerun()
-if nombre in usuarios:
 
-    st.warning(
-        "Este nombre ya existe. "
-        "Se cargarán tus pronósticos guardados."
-    )
-else:
-
-    st.info(
-        f"Bienvenido nuevamente {nombre}"
-    )
+st.info(f"Hola {nombre}")
 
 # ==================================
-# RECARGAR
+# FUNCIONES
 # ==================================
-df = cargar_dataframe()
+def partido_abierto(pid):
+    if config.get("estado") == "cerrado":
+        return False
+    return config.get(pid, "abierto") == "abierto"
 
-# ==================================
-# GUARDAR RESPUESTA
-# ==================================
-def guardar_respuesta(nombre_usuario, partido_id, valor):
+def ya_guardado(pid):
+    if df.empty or "Nombre" not in df.columns:
+        return False
 
-    data = sheet.get_all_records()
+    fila = df[df["Nombre"].str.upper() == nombre]
+    if fila.empty:
+        return False
 
-    nombres = [
-        str(r["Nombre"]).upper()
-        for r in data
-    ]
-
-    fila = nombres.index(nombre_usuario) + 2
-
-    columnas = sheet.row_values(1)
-
-    col = columnas.index(partido_id) + 1
-
-    sheet.update_cell(
-        fila,
-        col,
-        valor
-    )
-
+    valor = fila.iloc[0].get(pid)
+    return pd.notna(valor) and str(valor).strip() != ""
 
 # ==================================
-# RENDER PARTIDO
+# SESSION (CAMBIOS)
 # ==================================
-def render_partido(partido_id, equipo_a, equipo_b):
+if "cambios" not in st.session_state:
+    st.session_state["cambios"] = {}
 
-    key_sel = f"{partido_id}_sel"
-    key_lock = f"{partido_id}_lock"
+# ==================================
+# GUARDADO MASIVO
+# ==================================
+def guardar_masivo():
 
-    if key_sel not in st.session_state:
-        st.session_state[key_sel] = None
+    cambios = st.session_state["cambios"]
 
-    if key_lock not in st.session_state:
-        st.session_state[key_lock] = False
+    if not cambios:
+        st.warning("No hay cambios")
+        return
 
-    # Cargar selección previa
-    if (
-        not df.empty
-        and "Nombre" in df.columns
-        and partido_id in df.columns
-    ):
+    nombres = df["Nombre"].astype(str).str.upper().tolist()
+    columnas = df.columns.tolist()
 
-        fila = df[
-            df["Nombre"]
-            .astype(str)
-            .str.upper() == nombre
-        ]
+    updates = []
 
-        if not fila.empty:
+    for pid, valor in cambios.items():
 
-            valor = fila[partido_id].values[0]
+        fila = nombres.index(nombre) + 2
+        col = columnas.index(pid) + 1
+        letra = chr(64 + col)
 
-            if pd.notna(valor) and valor != "":
+        updates.append({
+            "range": f"{letra}{fila}",
+            "values": [[valor]]
+        })
 
-                st.session_state[key_sel] = valor
-                st.session_state[key_lock] = True
+    sheet.batch_update(updates)
 
-    col1, col2, col3, col4 = st.columns([3, 2, 3, 1])
+    st.success("✅ Pronósticos guardados")
+    st.session_state["cambios"] = {}
+    st.cache_data.clear()
+    st.rerun()
 
-    # ==================================
-    # EQUIPO A
-    # ==================================
-    with col1:
+# ==================================
+# RENDER
+# ==================================
+def render_partido(pid, a, b):
 
-        if st.session_state[key_sel] == "A":
+    bloqueado = ya_guardado(pid)
 
-            st.success(equipo_a)
+    col1, col2, col3 = st.columns(3)
 
-        else:
+    if col1.button(a, key=f"{pid}_A", disabled=bloqueado):
+        if partido_abierto(pid):
+            st.session_state["cambios"][pid] = "A"
 
-            if st.button(
-                equipo_a,
-                key=f"{partido_id}_A"
-            ):
+    if col2.button("Empate", key=f"{pid}_E", disabled=bloqueado):
+        if partido_abierto(pid):
+            st.session_state["cambios"][pid] = "E"
 
-                if (
-                    not st.session_state[key_lock]
-                    and partido_abierto(partido_id)
-                ):
+    if col3.button(b, key=f"{pid}_B", disabled=bloqueado):
+        if partido_abierto(pid):
+            st.session_state["cambios"][pid] = "B"
 
-                    st.session_state[key_sel] = "A"
+    # mostrar valor guardado
+    if bloqueado:
+        valor = df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
+        st.success(f"🔒 Guardado: {valor}")
 
-    # ==================================
-    # VS + EMPATE
-    # ==================================
-    with col2:
+    # mostrar selección actual (no guardada)
+    elif pid in st.session_state["cambios"]:
+        st.caption(f"Seleccionado: {st.session_state['cambios'][pid]}")
 
-        st.markdown(
-            "<h3 style='text-align:center;'>VS</h3>",
-            unsafe_allow_html=True
-        )
-
-        st.write("")
-
-        if st.session_state[key_sel] == "E":
-
-            st.success("EMPATE")
-
-        else:
-
-            if st.button(
-                "Empate",
-                key=f"{partido_id}_E",
-                use_container_width=True
-            ):
-
-                if (
-                    not st.session_state[key_lock]
-                    and partido_abierto(partido_id)
-                ):
-
-                    st.session_state[key_sel] = "E"
-
-    # ==================================
-    # EQUIPO B
-    # ==================================
-    with col3:
-
-        if st.session_state[key_sel] == "B":
-
-            st.success(equipo_b)
-
-        else:
-
-            if st.button(
-                equipo_b,
-                key=f"{partido_id}_B"
-            ):
-
-                if (
-                    not st.session_state[key_lock]
-                    and partido_abierto(partido_id)
-                ):
-
-                    st.session_state[key_sel] = "B"
-
-    # ==================================
-    # GUARDAR
-    # ==================================
-    with col4:
-
-        if (
-            not st.session_state[key_lock]
-            and partido_abierto(partido_id)
-        ):
-
-            if st.button(
-                "✅",
-                key=f"{partido_id}_save"
-            ):
-
-                if st.session_state[key_sel]:
-
-                    guardar_respuesta(
-                        nombre,
-                        partido_id,
-                        st.session_state[key_sel]
-                    )
-
-                    st.success("Pronóstico guardado")
-
-                    st.rerun()
-
-    # ==================================
-    # PARTIDO CERRADO
-    # ==================================
-    if not partido_abierto(partido_id):
-
+    if not partido_abierto(pid):
         st.caption("🔒 Partido cerrado")
 
     st.divider()
@@ -361,21 +179,24 @@ def render_partido(partido_id, equipo_a, equipo_b):
 # ==================================
 grupo_actual = ""
 
-for partido in partidos:
+for p in partidos:
 
-    grupo = str(partido["GRUPO"]).strip()
+    grupo = str(p["GRUPO"]).strip()
 
-    if grupo and grupo != grupo_actual:
-
+    if grupo != grupo_actual:
         st.header(f"🏆 {grupo}")
-
         grupo_actual = grupo
 
     render_partido(
-        str(partido["ID"]).strip(),
-        str(partido["Equipo A"]).strip(),
-        str(partido["Equipo B"]).strip()
+        str(p["ID"]).strip(),
+        str(p["Equipo A"]).strip(),
+        str(p["Equipo B"]).strip()
     )
+
+# ==================================
+# BOTÓN GUARDAR
+# ==================================
+st.button("💾 Guardar pronósticos", on_click=guardar_masivo)
 
 # ==================================
 # RANKING
@@ -384,107 +205,44 @@ def calcular_ranking():
 
     ranking = []
 
-    try:
-
-        resultados_df = pd.DataFrame(
-            resultados_sheet.get_all_records()
-        )
-
-    except Exception:
-
-        return ranking
-
-    if resultados_df.empty:
-        return ranking
-
-    resultados = {}
-
-    for _, row in resultados_df.iterrows():
-
-        partido = str(row["ID"]).strip()
-        resultado = str(row["Resultado"]).strip().upper()
-
-        if resultado:
-            resultados[partido] = resultado
-
-    if not resultados:
-        return ranking
+    resultados = {
+        str(r["ID"]).strip(): str(r["Resultado"]).strip().upper()
+        for r in data["resultados"] if r["Resultado"]
+    }
 
     for _, fila in df.iterrows():
 
-        nombre_jugador = fila["Nombre"]
-
         aciertos = 0
-        evaluados = 0
+        total = 0
 
-        for partido, resultado_real in resultados.items():
+        for partido, real in resultados.items():
 
             if partido not in df.columns:
                 continue
 
-            respuesta = fila.get(partido)
+            resp = fila.get(partido)
 
-            if pd.isna(respuesta) or str(respuesta).strip() == "":
-                continue
+            if pd.notna(resp) and resp != "":
+                total += 1
+                if str(resp).upper() == real:
+                    aciertos += 1
 
-            evaluados += 1
+        porcentaje = round((aciertos / total) * 100, 2) if total else 0
 
-            if str(respuesta).strip().upper() == resultado_real:
-                aciertos += 1
+        ranking.append((fila["Nombre"], aciertos, total, porcentaje))
 
-        porcentaje = 0
-
-        if evaluados > 0:
-            porcentaje = round(
-                (aciertos / evaluados) * 100,
-                2
-            )
-
-        ranking.append(
-            (
-                nombre_jugador,
-                aciertos,
-                evaluados,
-                porcentaje
-            )
-        )
-
-    ranking.sort(
-        key=lambda x: x[3],
-        reverse=True
-    )
+    ranking.sort(key=lambda x: x[3], reverse=True)
 
     return ranking
 
-# ==================================
-# RANKING COMPLETO
-# ==================================
-
-with st.expander("🏆 Ver Ranking Completo"):
+with st.expander("🏆 Ranking"):
 
     ranking = calcular_ranking()
 
     if ranking:
-
-        tabla = pd.DataFrame(
+        st.dataframe(pd.DataFrame(
             ranking,
-            columns=[
-                "Nombre",
-                "Aciertos",
-                "Partidos Evaluados",
-                "% Acierto"
-            ]
-        )
-
-        tabla.index = tabla.index + 1
-
-        st.dataframe(
-            tabla,
-            use_container_width=True
-        )
-
+            columns=["Nombre", "Aciertos", "Total", "%"]
+        ))
     else:
-
-        st.info(
-            "Todavía no existen resultados para calcular el ranking."
-        )
+        st.info("Sin resultados todavía")
