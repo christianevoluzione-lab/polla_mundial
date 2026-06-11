@@ -70,11 +70,26 @@ if not nombre:
 
 nombre = nombre.strip().upper()
 
-usuarios = df["Nombre"].astype(str).str.upper().tolist() if not df.empty else []
+# Consultar usuarios directamente desde Google Sheets
+usuarios_actuales = [
+    str(x).strip().upper()
+    for x in sheet.col_values(1)[1:]
+]
 
 # Registro
-if nombre not in usuarios:
-    sheet.append_row([nombre])
+if nombre not in usuarios_actuales:
+
+    # Segunda verificación para evitar duplicados
+    usuarios_actuales = [
+        str(x).strip().upper()
+        for x in sheet.col_values(1)[1:]
+    ]
+
+    if nombre not in usuarios_actuales:
+        sheet.append_row([nombre])
+
+    cargar_todo.clear()
+
     st.success(f"Usuario {nombre} registrado")
     st.rerun()
 
