@@ -258,7 +258,7 @@ def calcular_ranking():
 
         ranking.append((fila["Nombre"], aciertos, total, porcentaje))
 
-    ranking.sort(key=lambda x: x[3], reverse=True)
+    ranking.sort(key=lambda x: x[1], reverse=True)
 
     return ranking
 
