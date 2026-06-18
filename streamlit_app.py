@@ -42,7 +42,7 @@ sheet_resultados = spreadsheet.worksheet("RESULTADOS")
 # ==================================
 # CARGA
 # ==================================
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=180)
 def cargar_todo():
     return {
         "respuestas": sheet.get_all_records(),
