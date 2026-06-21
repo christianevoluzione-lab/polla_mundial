@@ -94,6 +94,54 @@ if nombre not in usuarios_actuales:
     st.rerun()
 
 st.info(f"Hola {nombre}")
+# ==================================
+# RANKING
+# ==================================
+def calcular_ranking():
+
+    ranking = []
+
+    resultados = {
+        str(r["ID"]).strip(): str(r["Resultado"]).strip().upper()
+        for r in data["resultados"] if r["Resultado"]
+    }
+
+    for _, fila in df.iterrows():
+
+        aciertos = 0
+        total = 0
+
+        for partido, real in resultados.items():
+
+            if partido not in df.columns:
+                continue
+
+            resp = fila.get(partido)
+
+            if pd.notna(resp) and resp != "":
+                total += 1
+                if str(resp).upper() == real:
+                    aciertos += 1
+
+        porcentaje = round((aciertos / total) * 100, 2) if total else 0
+
+        ranking.append((fila["Nombre"], aciertos, total, porcentaje))
+
+    ranking.sort(key=lambda x: x[1], reverse=True)
+
+    return ranking
+
+with st.expander("🏆 Ranking"):
+
+    ranking = calcular_ranking()
+
+    if ranking:
+        st.dataframe(pd.DataFrame(
+            ranking,
+            columns=["Nombre", "Aciertos", "Total", "%"]
+        ))
+    else:
+        st.info("Sin resultados todavía")
 
 # ==================================
 # FUNCIONES
@@ -225,51 +273,3 @@ for p in partidos:
 # ==================================
 st.button("💾 Guardar pronósticos", on_click=guardar_masivo)
 
-# ==================================
-# RANKING
-# ==================================
-def calcular_ranking():
-
-    ranking = []
-
-    resultados = {
-        str(r["ID"]).strip(): str(r["Resultado"]).strip().upper()
-        for r in data["resultados"] if r["Resultado"]
-    }
-
-    for _, fila in df.iterrows():
-
-        aciertos = 0
-        total = 0
-
-        for partido, real in resultados.items():
-
-            if partido not in df.columns:
-                continue
-
-            resp = fila.get(partido)
-
-            if pd.notna(resp) and resp != "":
-                total += 1
-                if str(resp).upper() == real:
-                    aciertos += 1
-
-        porcentaje = round((aciertos / total) * 100, 2) if total else 0
-
-        ranking.append((fila["Nombre"], aciertos, total, porcentaje))
-
-    ranking.sort(key=lambda x: x[1], reverse=True)
-
-    return ranking
-
-with st.expander("🏆 Ranking"):
-
-    ranking = calcular_ranking()
-
-    if ranking:
-        st.dataframe(pd.DataFrame(
-            ranking,
-            columns=["Nombre", "Aciertos", "Total", "%"]
-        ))
-    else:
-        st.info("Sin resultados todavía")
