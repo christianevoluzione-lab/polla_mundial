@@ -236,9 +236,9 @@ def render_partido(pid, a, b):
             st.session_state["cambios"][pid] = "B"
 
     # mostrar valor guardado
-    
-    if bloqueado:
-    valor = str(df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
+   if bloqueado:
+    valor = str(
+        df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
     ).strip().upper()
 
     resultado_real = ""
