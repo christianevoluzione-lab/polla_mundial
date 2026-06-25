@@ -235,8 +235,9 @@ def render_partido(pid, a, b):
         if partido_abierto(pid):
             st.session_state["cambios"][pid] = "B"
 
-    # mostrar valor guardado
-   if bloqueado:
+  # mostrar valor guardado
+if bloqueado:
+
     valor = str(
         df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
     ).strip().upper()
@@ -286,15 +287,9 @@ def render_partido(pid, a, b):
     else:
         st.success(f"🔒 Guardado: {valor}")
 
-    # mostrar selección actual (no guardada)
-    elif pid in st.session_state["cambios"]:
-        st.caption(f"Seleccionado: {st.session_state['cambios'][pid]}")
-
-    if not partido_abierto(pid):
-        st.caption("🔒 Partido cerrado")
-
-    st.divider()
-
+# mostrar selección actual (no guardada)
+elif pid in st.session_state["cambios"]:
+    st.caption(f"Seleccionado: {st.session_state['cambios'][pid]}")
 # ==================================
 # MOSTRAR PARTIDOS
 # ==================================
