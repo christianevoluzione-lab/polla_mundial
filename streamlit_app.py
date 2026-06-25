@@ -235,61 +235,20 @@ def render_partido(pid, a, b):
         if partido_abierto(pid):
             st.session_state["cambios"][pid] = "B"
 
-  # mostrar valor guardado
- if bloqueado:
-
-    valor = str(
-        df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
-    ).strip().upper()
-
-    resultado_real = ""
-
-    for r in data["resultados"]:
-        if str(r["ID"]).strip() == pid:
-            resultado_real = str(r["Resultado"]).strip().upper()
-            break
-
-    if resultado_real:
-
-        if valor == resultado_real:
-            st.markdown(
-                f"""
-                <div style="
-                    background-color:#d4edda;
-                    color:#155724;
-                    padding:10px;
-                    border-radius:8px;
-                    font-weight:bold;
-                    margin-top:5px;
-                ">
-                ✅ Acertaste: {valor}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            st.markdown(
-                f"""
-                <div style="
-                    background-color:#ffe5cc;
-                    color:#8a4b00;
-                    padding:10px;
-                    border-radius:8px;
-                    font-weight:bold;
-                    margin-top:5px;
-                ">
-                ❌ Tu pronóstico: {valor}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-    else:
+    # mostrar valor guardado
+    if bloqueado:
+        valor = df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
         st.success(f"🔒 Guardado: {valor}")
 
-# mostrar selección actual (no guardada)
-elif pid in st.session_state["cambios"]:
-    st.caption(f"Seleccionado: {st.session_state['cambios'][pid]}")
+    # mostrar selección actual (no guardada)
+    elif pid in st.session_state["cambios"]:
+        st.caption(f"Seleccionado: {st.session_state['cambios'][pid]}")
+
+    if not partido_abierto(pid):
+        st.caption("🔒 Partido cerrado")
+
+    st.divider()
+
 # ==================================
 # MOSTRAR PARTIDOS
 # ==================================
