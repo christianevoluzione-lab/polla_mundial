@@ -237,8 +237,7 @@ def render_partido(pid, a, b):
 
     # mostrar valor guardado
     if bloqueado:
-    valor = str(
-        df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
+    valor = str(df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
     ).strip().upper()
 
     resultado_real = ""
