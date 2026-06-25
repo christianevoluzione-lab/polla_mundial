@@ -220,6 +220,13 @@ def guardar_masivo():
 def render_partido(pid, a, b):
 
     bloqueado = ya_guardado(pid)
+    
+    # Obtener resultados reales
+    resultados = {
+        str(r["ID"]).strip(): str(r["Resultado"]).strip().upper()
+        for r in data["resultados"] if r["Resultado"]
+    }
+    resultado_real = resultados.get(pid, None)
 
     col1, col2, col3 = st.columns(3)
 
@@ -235,10 +242,17 @@ def render_partido(pid, a, b):
         if partido_abierto(pid):
             st.session_state["cambios"][pid] = "B"
 
-    # mostrar valor guardado
+    # mostrar valor guardado con colores según acierto/error
     if bloqueado:
         valor = df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
-        st.success(f"🔒 Guardado: {valor}")
+        
+        # Verificar si el pronóstico es correcto o no
+        if resultado_real and str(valor).upper() == resultado_real:
+            st.success(f"✅ Correcto: {valor}")  # Verde (mantener el color actual)
+        elif resultado_real:
+            st.warning(f"❌ Incorrecto: {valor}")  # Naranja claro (warning)
+        else:
+            st.info(f"📝 Pendiente: {valor}")  # Para partidos sin resultado aún
 
     # mostrar selección actual (no guardada)
     elif pid in st.session_state["cambios"]:
@@ -272,4 +286,3 @@ for p in partidos:
 # BOTÓN GUARDAR
 # ==================================
 st.button("💾 Guardar pronósticos", on_click=guardar_masivo)
-
