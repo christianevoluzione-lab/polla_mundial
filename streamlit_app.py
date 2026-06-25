@@ -249,7 +249,6 @@ def render_partido(pid, a, b):
             resultado_real = str(r["Resultado"]).strip().upper()
             break
 
-    # Si ya existe resultado oficial
     if resultado_real:
 
         if valor == resultado_real:
