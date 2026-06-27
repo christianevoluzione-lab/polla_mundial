@@ -218,7 +218,16 @@ def guardar_masivo():
 # RENDER
 # ==================================
 def render_partido(pid, a, b):
-
+    """
+    Renderiza un partido con sus botones de selección.
+    Para partidos del 1 al 72: muestra A, Empate, B (3 botones)
+    Para partidos del 73 en adelante: muestra A, B (2 botones, sin empate)
+    """
+    try:
+        partido_id = int(pid)
+    except ValueError:
+        partido_id = 0
+    
     bloqueado = ya_guardado(pid)
     
     # Obtener resultados reales
@@ -228,33 +237,52 @@ def render_partido(pid, a, b):
     }
     resultado_real = resultados.get(pid, None)
 
-    col1, col2, col3 = st.columns(3)
+    # DETERMINAR SI ES PARTIDO DE ELIMINACIÓN DIRECTA (P73 EN ADELANTE)
+    es_eliminatoria = partido_id >= 73
 
-    if col1.button(a, key=f"{pid}_A", disabled=bloqueado):
-        if partido_abierto(pid):
-            st.session_state["cambios"][pid] = "A"
+    if es_eliminatoria:
+        # PARA PARTIDOS DE ELIMINACIÓN DIRECTA: SOLO 2 BOTONES (A y B)
+        st.markdown(f"**{a} vs {b}**")
+        col1, col2 = st.columns(2)
+        
+        if col1.button(f"🏆 {a}", key=f"{pid}_A", disabled=bloqueado, use_container_width=True):
+            if partido_abierto(pid):
+                st.session_state["cambios"][pid] = "A"
 
-    if col2.button("Empate", key=f"{pid}_E", disabled=bloqueado):
-        if partido_abierto(pid):
-            st.session_state["cambios"][pid] = "E"
+        if col2.button(f"🏆 {b}", key=f"{pid}_B", disabled=bloqueado, use_container_width=True):
+            if partido_abierto(pid):
+                st.session_state["cambios"][pid] = "B"
 
-    if col3.button(b, key=f"{pid}_B", disabled=bloqueado):
-        if partido_abierto(pid):
-            st.session_state["cambios"][pid] = "B"
+    else:
+        # PARA PARTIDOS DE FASE DE GRUPOS: 3 BOTONES (A, Empate, B)
+        st.markdown(f"**{a} vs {b}**")
+        col1, col2, col3 = st.columns(3)
 
-    # mostrar valor guardado con colores según acierto/error
+        if col1.button(f"🏆 {a}", key=f"{pid}_A", disabled=bloqueado, use_container_width=True):
+            if partido_abierto(pid):
+                st.session_state["cambios"][pid] = "A"
+
+        if col2.button("🤝 Empate", key=f"{pid}_E", disabled=bloqueado, use_container_width=True):
+            if partido_abierto(pid):
+                st.session_state["cambios"][pid] = "E"
+
+        if col3.button(f"🏆 {b}", key=f"{pid}_B", disabled=bloqueado, use_container_width=True):
+            if partido_abierto(pid):
+                st.session_state["cambios"][pid] = "B"
+
+    # Mostrar valor guardado con colores según acierto/error
     if bloqueado:
         valor = df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
         
         # Verificar si el pronóstico es correcto o no
         if resultado_real and str(valor).upper() == resultado_real:
-            st.success(f"✅ Correcto: {valor}")  # Verde (mantener el color actual)
+            st.success(f"✅ Correcto: {valor}")
         elif resultado_real:
-            st.warning(f"❌ Incorrecto: {valor}")  # Naranja claro (warning)
+            st.warning(f"❌ Incorrecto: {valor}")
         else:
-            st.info(f"📝 Pendiente: {valor}")  # Para partidos sin resultado aún
+            st.info(f"📝 Pendiente: {valor}")
 
-    # mostrar selección actual (no guardada)
+    # Mostrar selección actual (no guardada)
     elif pid in st.session_state["cambios"]:
         st.caption(f"Seleccionado: {st.session_state['cambios'][pid]}")
 
