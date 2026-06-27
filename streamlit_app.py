@@ -214,14 +214,35 @@ def guardar_masivo():
     st.success("✅ Pronósticos guardados")
     st.session_state["cambios"] = {}
     st.rerun()
+
+# ==================================
+# FUNCIÓN PARA OBTENER TÍTULO DE RONDA
+# ==================================
+def obtener_titulo_ronda(partido_id):
+    """
+    Devuelve el título de la ronda según el número de partido
+    """
+    if 73 <= partido_id <= 88:
+        return "🏆 16AVOS DE FINAL"
+    elif 89 <= partido_id <= 96:
+        return "🏆 OCTAVOS DE FINAL"
+    elif 97 <= partido_id <= 100:
+        return "🏆 CUARTOS DE FINAL"
+    elif 101 <= partido_id <= 102:
+        return "🏆 SEMIFINALES"
+    elif partido_id == 103:
+        return "🥉 TERCER PUESTO"
+    elif partido_id == 104:
+        return "🏆 FINAL"
+    else:
+        return None
+
 # ==================================
 # RENDER
 # ==================================
 def render_partido(pid, a, b):
-    # 🔥 IMPORTANTE: Limpiar el ID para obtener solo el número
-    # Ejemplo: "P73" -> 73, "P1" -> 1
+    # Limpiar el ID para obtener solo el número
     try:
-        # Eliminar cualquier caracter no numérico
         pid_limpio = ''.join(filter(str.isdigit, str(pid)))
         partido_id = int(pid_limpio) if pid_limpio else 0
     except (ValueError, TypeError):
@@ -236,11 +257,16 @@ def render_partido(pid, a, b):
     }
     resultado_real = resultados.get(pid, None)
 
-    # 🔥 DETERMINAR SI ES PARTIDO DE ELIMINACIÓN DIRECTA (P73 EN ADELANTE)
+    # DETERMINAR SI ES PARTIDO DE ELIMINACIÓN DIRECTA (P73 EN ADELANTE)
     es_eliminatoria = partido_id >= 73
 
+    # Mostrar título de la ronda si corresponde
+    titulo_ronda = obtener_titulo_ronda(partido_id)
+    if titulo_ronda:
+        st.subheader(titulo_ronda)
+
     if es_eliminatoria:
-        # ✅ PARTIDOS 73+: SOLO 2 BOTONES (A y B) - SIN EMPATE
+        # PARTIDOS 73+: SOLO 2 BOTONES (A y B) - SIN EMPATE
         col1, col2 = st.columns(2)
         
         if col1.button(a, key=f"{pid}_A", disabled=bloqueado, use_container_width=True):
@@ -252,7 +278,7 @@ def render_partido(pid, a, b):
                 st.session_state["cambios"][pid] = "B"
 
     else:
-        # ✅ PARTIDOS 1-72: 3 BOTONES (A, Empate, B)
+        # PARTIDOS 1-72: 3 BOTONES (A, Empate, B)
         col1, col2, col3 = st.columns(3)
 
         if col1.button(a, key=f"{pid}_A", disabled=bloqueado, use_container_width=True):
@@ -293,16 +319,33 @@ def render_partido(pid, a, b):
 # ==================================
 grupo_actual = ""
 
+# Variable para controlar que no se repitan los títulos de ronda
+ultimo_titulo_mostrado = None
+
 for p in partidos:
 
+    # Obtener ID limpio
+    pid = str(p["ID"]).strip()
+    try:
+        pid_limpio = ''.join(filter(str.isdigit, str(pid)))
+        partido_id = int(pid_limpio) if pid_limpio else 0
+    except (ValueError, TypeError):
+        partido_id = 0
+    
     grupo = str(p["GRUPO"]).strip()
 
-    if grupo != grupo_actual:
-        st.header(f"🏆 {grupo}")
-        grupo_actual = grupo
+    # Mostrar título de grupo solo para partidos de fase de grupos
+    if partido_id < 73:
+        if grupo != grupo_actual:
+            st.header(f"🏆 {grupo}")
+            grupo_actual = grupo
+    else:
+        # Para partidos de eliminación, no mostrar el grupo
+        # El título de ronda se mostrará dentro de render_partido
+        pass
 
     render_partido(
-        str(p["ID"]).strip(),
+        pid,
         str(p["Equipo A"]).strip(),
         str(p["Equipo B"]).strip()
     )
