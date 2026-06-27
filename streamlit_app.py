@@ -260,11 +260,6 @@ def render_partido(pid, a, b):
     # DETERMINAR SI ES PARTIDO DE ELIMINACIÓN DIRECTA (P73 EN ADELANTE)
     es_eliminatoria = partido_id >= 73
 
-    # Mostrar título de la ronda si corresponde
-    titulo_ronda = obtener_titulo_ronda(partido_id)
-    if titulo_ronda:
-        st.subheader(titulo_ronda)
-
     if es_eliminatoria:
         # PARTIDOS 73+: SOLO 2 BOTONES (A y B) - SIN EMPATE
         col1, col2 = st.columns(2)
@@ -320,7 +315,7 @@ def render_partido(pid, a, b):
 grupo_actual = ""
 
 # Variable para controlar que no se repitan los títulos de ronda
-ultimo_titulo_mostrado = None
+ronda_actual = None
 
 for p in partidos:
 
@@ -334,15 +329,17 @@ for p in partidos:
     
     grupo = str(p["GRUPO"]).strip()
 
-    # Mostrar título de grupo solo para partidos de fase de grupos
+    # Mostrar título de grupo solo para partidos de fase de grupos (1-72)
     if partido_id < 73:
         if grupo != grupo_actual:
             st.header(f"🏆 {grupo}")
             grupo_actual = grupo
     else:
-        # Para partidos de eliminación, no mostrar el grupo
-        # El título de ronda se mostrará dentro de render_partido
-        pass
+        # Para partidos de eliminación (73+), mostrar título de ronda UNA SOLA VEZ
+        titulo_ronda = obtener_titulo_ronda(partido_id)
+        if titulo_ronda and titulo_ronda != ronda_actual:
+            st.header(titulo_ronda)
+            ronda_actual = titulo_ronda
 
     render_partido(
         pid,
