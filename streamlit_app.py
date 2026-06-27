@@ -211,6 +211,10 @@ def guardar_masivo():
 
     sheet.batch_update(updates)
 
+    # Guardar en session_state para mostrar mensaje después del rerun
+    for pid, valor in cambios.items():
+        st.session_state[f"guardado_{pid}"] = valor
+
     st.success("✅ Pronósticos guardados")
     st.session_state["cambios"] = {}
     st.rerun()
@@ -260,6 +264,12 @@ def render_partido(pid, a, b):
     # DETERMINAR SI ES PARTIDO DE ELIMINACIÓN DIRECTA (P73 EN ADELANTE)
     es_eliminatoria = partido_id >= 73
 
+    # 🔥 Mostrar mensaje de guardado si existe en session_state
+    if f"guardado_{pid}" in st.session_state:
+        st.success(f"✅ Guardado: {st.session_state[f'guardado_{pid}']}")
+        # Eliminar el mensaje después de mostrarlo para que no se acumule
+        # del st.session_state[f"guardado_{pid}"]
+
     if es_eliminatoria:
         # PARTIDOS 73+: SOLO 2 BOTONES (A y B) - SIN EMPATE
         col1, col2 = st.columns(2)
@@ -288,17 +298,20 @@ def render_partido(pid, a, b):
             if partido_abierto(pid):
                 st.session_state["cambios"][pid] = "B"
 
-    # mostrar valor guardado con colores según acierto/error
+    # 🔥 MOSTRAR PREDICCIÓN GUARDADA CON COLORES SEGÚN ESTADO
     if bloqueado:
         valor = df[df["Nombre"].str.upper() == nombre].iloc[0][pid]
+        valor_str = str(valor).upper() if pd.notna(valor) else ""
         
-        # Verificar si el pronóstico es correcto o no
-        if resultado_real and str(valor).upper() == resultado_real:
-            st.success(f"✅ Correcto: {valor}")
-        elif resultado_real:
-            st.warning(f"❌ Incorrecto: {valor}")
+        if resultado_real:
+            # Si hay resultado real, mostrar si acertó o falló
+            if valor_str == resultado_real:
+                st.success(f"✅ Correcto: {valor_str}")  # VERDE
+            else:
+                st.warning(f"❌ Incorrecto: {valor_str}")  # NARANJA CLARO
         else:
-            st.info(f"📝 Pendiente: {valor}")
+            # Si no hay resultado real aún, mostrar en AZUL
+            st.info(f"📝 Pronóstico: {valor_str}")  # AZUL
 
     # mostrar selección actual (no guardada)
     elif pid in st.session_state["cambios"]:
