@@ -104,7 +104,7 @@ if nombre not in usuarios_actuales:
 st.info(f"Hola {nombre}")
 
 # ==================================
-# MODAL PARA ESCOGER CAMPEÓN (CON BOTONES)
+# MODAL PARA ESCOGER CAMPEÓN (CON BOTONES FUNCIONALES)
 # ==================================
 def mostrar_modal_campeon():
     """Muestra un modal para que el usuario elija su campeón con botones"""
@@ -117,13 +117,25 @@ def mostrar_modal_campeon():
             if pd.notna(campeon_actual) and str(campeon_actual).strip() != "":
                 return  # Ya eligió campeón
     
-    # 🔥 LISTA DE LOS 8 CLASIFICADOS A CUARTOS DE FINAL
+    # LISTA DE LOS 8 CLASIFICADOS A CUARTOS DE FINAL
     equipos_cuartos = [
         "Francia", "Marruecos", "España", "Bélgica",
         "Noruega", "Inglaterra", "Argentina", "Suiza"
     ]
     
-    # CSS para el modal con botones mejorados
+    # Diccionario de banderas para los equipos
+    banderas = {
+        "Francia": "🇫🇷",
+        "Marruecos": "🇲🇦",
+        "España": "🇪🇸",
+        "Bélgica": "🇧🇪",
+        "Noruega": "🇳🇴",
+        "Inglaterra": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+        "Argentina": "🇦🇷",
+        "Suiza": "🇨🇭"
+    }
+    
+    # CSS para el modal funcional
     modal_style = """
     <style>
     .modal-overlay {
@@ -132,23 +144,28 @@ def mostrar_modal_campeon():
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.6);
+        background: rgba(0,0,0,0.7);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 9999;
         backdrop-filter: blur(5px);
+        pointer-events: none;
     }
     .modal-content {
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
         padding: 40px;
         border-radius: 25px;
-        max-width: 700px;
+        max-width: 750px;
         width: 95%;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.8);
         text-align: center;
         animation: slideIn 0.4s ease-out;
         border: 2px solid rgba(255,255,255,0.1);
+        pointer-events: auto;
+        position: relative;
     }
     @keyframes slideIn {
         from {
@@ -163,14 +180,14 @@ def mostrar_modal_campeon():
     .modal-title {
         font-size: 28px;
         font-weight: bold;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
         color: #ffffff;
         text-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
     .modal-subtitle {
         color: #a8c8ff;
         font-size: 16px;
-        margin-bottom: 25px;
+        margin-bottom: 20px;
     }
     .modal-grid {
         display: grid;
@@ -178,69 +195,81 @@ def mostrar_modal_campeon():
         gap: 12px;
         margin: 20px 0;
     }
-    .modal-button-team {
+    .modal-team-btn {
         background: rgba(255,255,255,0.08);
         color: #ffffff;
         border: 2px solid rgba(255,255,255,0.15);
-        padding: 14px 20px;
-        font-size: 17px;
+        padding: 15px 20px;
+        font-size: 18px;
         font-weight: 600;
         border-radius: 12px;
         cursor: pointer;
         transition: all 0.3s ease;
         width: 100%;
-        backdrop-filter: blur(10px);
         text-align: center;
+        font-family: inherit;
     }
-    .modal-button-team:hover {
+    .modal-team-btn:hover {
         background: rgba(255,215,0,0.2);
         border-color: #ffd700;
-        transform: scale(1.03);
-        box-shadow: 0 8px 25px rgba(255,215,0,0.15);
+        transform: scale(1.05);
+        box-shadow: 0 8px 25px rgba(255,215,0,0.2);
     }
-    .modal-button-team:active {
+    .modal-team-btn:active {
         transform: scale(0.95);
     }
-    .modal-footer {
-        margin-top: 20px;
-        display: flex;
-        justify-content: center;
-        gap: 15px;
-        flex-wrap: wrap;
-    }
-    .modal-button-skip {
+    .modal-close-btn {
         background: rgba(255,255,255,0.05);
-        color: #888;
+        color: #aaa;
         border: 1px solid rgba(255,255,255,0.1);
-        padding: 10px 25px;
-        font-size: 14px;
+        padding: 12px 30px;
+        font-size: 15px;
         border-radius: 10px;
         cursor: pointer;
         transition: all 0.3s;
+        font-family: inherit;
+        margin-top: 10px;
     }
-    .modal-button-skip:hover {
+    .modal-close-btn:hover {
         background: rgba(255,255,255,0.1);
         color: #fff;
     }
     .modal-emojis {
         font-size: 40px;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
     }
     .bandera {
         font-size: 28px;
         margin-right: 8px;
+    }
+    .close-icon {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        font-size: 28px;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: none;
+        border: none;
+        font-family: inherit;
+    }
+    .close-icon:hover {
+        color: #fff;
+        transform: rotate(90deg);
     }
     @media (max-width: 600px) {
         .modal-grid {
             grid-template-columns: 1fr 1fr;
             gap: 8px;
         }
-        .modal-button-team {
+        .modal-team-btn {
             font-size: 14px;
-            padding: 10px 12px;
+            padding: 12px 10px;
         }
         .modal-content {
-            padding: 25px;
+            padding: 20px;
+            max-height: 95vh;
         }
         .modal-title {
             font-size: 22px;
@@ -256,9 +285,11 @@ def mostrar_modal_campeon():
         st.session_state.mostrar_modal = True
     
     if st.session_state.mostrar_modal:
+        # Contenedor del modal con HTML
         st.markdown("""
-        <div class="modal-overlay">
+        <div class="modal-overlay" id="modal-overlay">
             <div class="modal-content">
+                <button class="close-icon" onclick="document.getElementById('btn_cerrar_modal').click();">✕</button>
                 <div class="modal-emojis">
                     🏆🌍⚽
                 </div>
@@ -271,78 +302,86 @@ def mostrar_modal_campeon():
                 <div class="modal-grid">
         """, unsafe_allow_html=True)
         
-        # Diccionario de banderas para los equipos
-        banderas = {
-            "Francia": "🇫🇷",
-            "Marruecos": "🇲🇦",
-            "España": "🇪🇸",
-            "Bélgica": "🇧🇪",
-            "Noruega": "🇳🇴",
-            "Inglaterra": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-            "Argentina": "🇦🇷",
-            "Suiza": "🇨🇭"
-        }
-        
-        # Crear botones para cada equipo usando HTML
+        # Crear botones para cada equipo usando HTML con JavaScript
         for equipo in equipos_cuartos:
             bandera = banderas.get(equipo, "⚽")
-            # Usar st.button con key única
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                if st.button(f"{bandera} {equipo}", 
-                           key=f"btn_campeon_{equipo}",
-                           use_container_width=True,
-                           type="primary"):
-                    # Guardar la elección
-                    try:
-                        # Obtener la fila del usuario
-                        nombres = df["Nombre"].astype(str).str.upper().tolist()
-                        fila_usuario = nombres.index(nombre) + 2
-                        
-                        # Obtener la columna CAMPEON
-                        headers = sheet.row_values(1)
-                        if "CAMPEON" not in headers:
-                            headers.append("CAMPEON")
-                            sheet.update_row(1, headers)
-                        
-                        col_campeon = headers.index("CAMPEON") + 1
-                        celda = rowcol_to_a1(fila_usuario, col_campeon)
-                        
-                        # Guardar la elección
-                        sheet.update(celda, equipo)
-                        
-                        # Actualizar estado
-                        st.session_state.mostrar_modal = False
-                        st.session_state.campeon_guardado = equipo
-                        st.session_state.campeon_confirmado = True
-                        
-                        cargar_todo.clear()
-                        st.success(f"✅ ¡Has elegido a {equipo} como campeón!")
-                        time.sleep(1)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al guardar: {e}")
+            # Usar un botón HTML con onclick para llamar a la función de Streamlit
+            st.markdown(f"""
+                <button class="modal-team-btn" onclick="
+                    const btn = document.createElement('button');
+                    btn.style.display = 'none';
+                    btn.setAttribute('data-testid', 'baseButton-secondary');
+                    btn.id = 'btn_{equipo.replace(' ', '_')}';
+                    document.body.appendChild(btn);
+                    btn.click();
+                ">
+                    {bandera} {equipo}
+                </button>
+            """, unsafe_allow_html=True)
+            
+            # Botón oculto de Streamlit para cada equipo
+            if st.button(f"{bandera} {equipo}", 
+                       key=f"btn_campeon_{equipo}",
+                       use_container_width=True,
+                       type="primary",
+                       hidden=True):
+                guardar_campeon(equipo)
         
         st.markdown("""
                 </div>
-                <div class="modal-footer">
-                    <button class="modal-button-skip" onclick="parent.document.querySelector('[data-testid=baseButton-secondary]').click()">
-                        Saltar por ahora
-                    </button>
-                </div>
+                <button class="modal-close-btn" onclick="document.getElementById('btn_cerrar_modal').click();">
+                    ⏭️ Saltar por ahora
+                </button>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
-        # Botón de saltar (usando Streamlit)
-        col1, col2, col3 = st.columns([1, 1, 1])
+        # Botón de cerrar modal (Streamlit)
+        if st.button("Cerrar modal", key="btn_cerrar_modal", hidden=True):
+            st.session_state.mostrar_modal = False
+            st.session_state.campeon_confirmado = False
+            st.rerun()
+        
+        # También agregar un botón visible para cerrar
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("⏭️ Saltar por ahora", key="btn_saltar_modal", use_container_width=True):
+            if st.button("⏭️ Saltar por ahora", key="btn_saltar_visible", use_container_width=True):
                 st.session_state.mostrar_modal = False
                 st.session_state.campeon_confirmado = False
                 st.rerun()
         
         st.stop()
+
+def guardar_campeon(equipo):
+    """Función para guardar el campeón elegido"""
+    try:
+        # Obtener la fila del usuario
+        nombres = df["Nombre"].astype(str).str.upper().tolist()
+        fila_usuario = nombres.index(nombre) + 2
+        
+        # Obtener la columna CAMPEON
+        headers = sheet.row_values(1)
+        if "CAMPEON" not in headers:
+            headers.append("CAMPEON")
+            sheet.update_row(1, headers)
+        
+        col_campeon = headers.index("CAMPEON") + 1
+        celda = rowcol_to_a1(fila_usuario, col_campeon)
+        
+        # Guardar la elección
+        sheet.update(celda, equipo)
+        
+        # Actualizar estado
+        st.session_state.mostrar_modal = False
+        st.session_state.campeon_guardado = equipo
+        st.session_state.campeon_confirmado = True
+        
+        cargar_todo.clear()
+        st.success(f"✅ ¡Has elegido a {equipo} como campeón!")
+        time.sleep(1)
+        st.rerun()
+    except Exception as e:
+        st.error(f"Error al guardar: {e}")
 
 # Ejecutar el modal al inicio (si no ha elegido campeón)
 if "campeon_confirmado" not in st.session_state:
