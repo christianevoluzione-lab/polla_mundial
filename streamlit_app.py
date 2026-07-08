@@ -104,10 +104,10 @@ if nombre not in usuarios_actuales:
 st.info(f"Hola {nombre}")
 
 # ==================================
-# MODAL PARA ESCOGER CAMPEÓN
+# MODAL PARA ESCOGER CAMPEÓN (CON BOTONES)
 # ==================================
 def mostrar_modal_campeon():
-    """Muestra un modal para que el usuario elija su campeón"""
+    """Muestra un modal para que el usuario elija su campeón con botones"""
     
     # Verificar si el usuario ya eligió campeón
     if not df.empty and "CAMPEON" in df.columns:
@@ -117,80 +117,134 @@ def mostrar_modal_campeon():
             if pd.notna(campeon_actual) and str(campeon_actual).strip() != "":
                 return  # Ya eligió campeón
     
-    # Lista de los 8 clasificados a cuartos de final (por ahora son todos los posibles)
-    # Estos deberían actualizarse según los resultados reales
+    # 🔥 LISTA DE LOS 8 CLASIFICADOS A CUARTOS DE FINAL
     equipos_cuartos = [
-        "Argentina", "Brasil", "Francia", "Inglaterra",
-        "España", "Alemania", "Países Bajos", "Portugal"
+        "Francia", "Marruecos", "España", "Bélgica",
+        "Noruega", "Inglaterra", "Argentina", "Suiza"
     ]
     
-    # CSS para el modal
+    # CSS para el modal con botones mejorados
     modal_style = """
     <style>
-    .modal {
+    .modal-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.5);
+        background: rgba(0,0,0,0.6);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 9999;
+        backdrop-filter: blur(5px);
     }
     .modal-content {
-        background: white;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
         padding: 40px;
-        border-radius: 20px;
-        max-width: 500px;
-        width: 90%;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        border-radius: 25px;
+        max-width: 700px;
+        width: 95%;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         text-align: center;
-        animation: slideIn 0.3s ease-out;
+        animation: slideIn 0.4s ease-out;
+        border: 2px solid rgba(255,255,255,0.1);
     }
     @keyframes slideIn {
         from {
-            transform: translateY(-50px);
+            transform: translateY(-50px) scale(0.95);
             opacity: 0;
         }
         to {
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
             opacity: 1;
         }
     }
     .modal-title {
-        font-size: 24px;
+        font-size: 28px;
         font-weight: bold;
-        margin-bottom: 20px;
-        color: #1f1f1f;
+        margin-bottom: 10px;
+        color: #ffffff;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
-    .modal-title img {
-        vertical-align: middle;
-        margin-right: 10px;
-    }
-    .modal-select {
-        width: 100%;
-        padding: 12px;
+    .modal-subtitle {
+        color: #a8c8ff;
         font-size: 16px;
-        border-radius: 10px;
-        border: 2px solid #ddd;
-        margin: 15px 0;
+        margin-bottom: 25px;
     }
-    .modal-button {
-        background: #ff4b4b;
-        color: white;
-        border: none;
-        padding: 12px 30px;
-        font-size: 18px;
+    .modal-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin: 20px 0;
+    }
+    .modal-button-team {
+        background: rgba(255,255,255,0.08);
+        color: #ffffff;
+        border: 2px solid rgba(255,255,255,0.15);
+        padding: 14px 20px;
+        font-size: 17px;
+        font-weight: 600;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 100%;
+        backdrop-filter: blur(10px);
+        text-align: center;
+    }
+    .modal-button-team:hover {
+        background: rgba(255,215,0,0.2);
+        border-color: #ffd700;
+        transform: scale(1.03);
+        box-shadow: 0 8px 25px rgba(255,215,0,0.15);
+    }
+    .modal-button-team:active {
+        transform: scale(0.95);
+    }
+    .modal-footer {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    .modal-button-skip {
+        background: rgba(255,255,255,0.05);
+        color: #888;
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 10px 25px;
+        font-size: 14px;
         border-radius: 10px;
         cursor: pointer;
         transition: all 0.3s;
-        font-weight: bold;
     }
-    .modal-button:hover {
-        background: #e63946;
-        transform: scale(1.05);
+    .modal-button-skip:hover {
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+    }
+    .modal-emojis {
+        font-size: 40px;
+        margin-bottom: 10px;
+    }
+    .bandera {
+        font-size: 28px;
+        margin-right: 8px;
+    }
+    @media (max-width: 600px) {
+        .modal-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .modal-button-team {
+            font-size: 14px;
+            padding: 10px 12px;
+        }
+        .modal-content {
+            padding: 25px;
+        }
+        .modal-title {
+            font-size: 22px;
+        }
     }
     </style>
     """
@@ -203,30 +257,43 @@ def mostrar_modal_campeon():
     
     if st.session_state.mostrar_modal:
         st.markdown("""
-        <div class="modal">
+        <div class="modal-overlay">
             <div class="modal-content">
-                <div class="modal-title">
-                    🏆 ESCOGE TU CAMPEÓN
+                <div class="modal-emojis">
+                    🏆🌍⚽
                 </div>
-                <p style="color: #666; margin-bottom: 20px;">
+                <div class="modal-title">
+                    ESCOGE TU CAMPEÓN
+                </div>
+                <div class="modal-subtitle">
                     Selecciona el equipo que crees que ganará el Mundial 2026
-                </p>
+                </div>
+                <div class="modal-grid">
         """, unsafe_allow_html=True)
         
-        # Selectbox para elegir campeón
-        campeon_elegido = st.selectbox(
-            "Selecciona tu campeón:",
-            equipos_cuartos,
-            key="select_campeon",
-            label_visibility="collapsed"
-        )
+        # Diccionario de banderas para los equipos
+        banderas = {
+            "Francia": "🇫🇷",
+            "Marruecos": "🇲🇦",
+            "España": "🇪🇸",
+            "Bélgica": "🇧🇪",
+            "Noruega": "🇳🇴",
+            "Inglaterra": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+            "Argentina": "🇦🇷",
+            "Suiza": "🇨🇭"
+        }
         
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            if st.button("✅ Confirmar", key="btn_confirmar_campeon", use_container_width=True):
-                if campeon_elegido:
-                    # Guardar en Google Sheets
+        # Crear botones para cada equipo usando HTML
+        for equipo in equipos_cuartos:
+            bandera = banderas.get(equipo, "⚽")
+            # Usar st.button con key única
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button(f"{bandera} {equipo}", 
+                           key=f"btn_campeon_{equipo}",
+                           use_container_width=True,
+                           type="primary"):
+                    # Guardar la elección
                     try:
                         # Obtener la fila del usuario
                         nombres = df["Nombre"].astype(str).str.upper().tolist()
@@ -236,36 +303,44 @@ def mostrar_modal_campeon():
                         headers = sheet.row_values(1)
                         if "CAMPEON" not in headers:
                             headers.append("CAMPEON")
-                            # Actualizar headers
                             sheet.update_row(1, headers)
                         
                         col_campeon = headers.index("CAMPEON") + 1
                         celda = rowcol_to_a1(fila_usuario, col_campeon)
                         
                         # Guardar la elección
-                        sheet.update(celda, campeon_elegido)
+                        sheet.update(celda, equipo)
                         
-                        # Actualizar dataframe y cache
+                        # Actualizar estado
                         st.session_state.mostrar_modal = False
-                        st.session_state.campeon_guardado = campeon_elegido
+                        st.session_state.campeon_guardado = equipo
                         st.session_state.campeon_confirmado = True
                         
                         cargar_todo.clear()
-                        st.success(f"✅ ¡Has elegido a {campeon_elegido} como campeón!")
+                        st.success(f"✅ ¡Has elegido a {equipo} como campeón!")
                         time.sleep(1)
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al guardar: {e}")
-                else:
-                    st.warning("Por favor selecciona un equipo")
         
+        st.markdown("""
+                </div>
+                <div class="modal-footer">
+                    <button class="modal-button-skip" onclick="parent.document.querySelector('[data-testid=baseButton-secondary]').click()">
+                        Saltar por ahora
+                    </button>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Botón de saltar (usando Streamlit)
+        col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            if st.button("❌ Saltar", key="btn_saltar_campeon", use_container_width=True):
+            if st.button("⏭️ Saltar por ahora", key="btn_saltar_modal", use_container_width=True):
                 st.session_state.mostrar_modal = False
                 st.session_state.campeon_confirmado = False
                 st.rerun()
-        
-        st.markdown("</div></div>", unsafe_allow_html=True)
         
         st.stop()
 
@@ -284,7 +359,18 @@ else:
                 st.rerun()
             else:
                 # Mostrar confirmación
-                st.success(f"🏆 Tu campeón elegido: {campeon_actual}")
+                banderas = {
+                    "Francia": "🇫🇷",
+                    "Marruecos": "🇲🇦",
+                    "España": "🇪🇸",
+                    "Bélgica": "🇧🇪",
+                    "Noruega": "🇳🇴",
+                    "Inglaterra": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+                    "Argentina": "🇦🇷",
+                    "Suiza": "🇨🇭"
+                }
+                bandera = banderas.get(str(campeon_actual).strip(), "🏆")
+                st.success(f"{bandera} Tu campeón elegido: {campeon_actual}")
 
 # ==================================
 # RANKING
