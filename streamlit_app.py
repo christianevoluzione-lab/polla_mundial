@@ -160,14 +160,14 @@ with st.expander("🏆 Elige tu Campeón", expanded=True):
     
     # Lista de los 8 clasificados a cuartos de final
     equipos_cuartos = [
-        "Francia 🇫🇷", 
-        "Marruecos 🇲🇦", 
-        "España 🇪🇸", 
-        "Bélgica 🇧🇪",
-        "Noruega 🇳🇴", 
-        "Inglaterra 🏴󠁧󠁢󠁥󠁮󠁧󠁿", 
-        "Argentina 🇦🇷", 
-        "Suiza 🇨🇭"
+        "Francia", 
+        "Marruecos", 
+        "España", 
+        "Bélgica",
+        "Noruega", 
+        "Inglaterra", 
+        "Argentina", 
+        "Suiza"
     ]
     
     # Selectbox para elegir campeón
