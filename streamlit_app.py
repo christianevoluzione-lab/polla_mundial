@@ -11,7 +11,7 @@ from google.oauth2.service_account import Credentials
 st.set_page_config(page_title="Polla Mundial", layout="wide")
 st.title("🏆 Polla Mundial 2026")
 
-# Estilo personalizado para mejor visualización
+# Estilo personalizado
 st.markdown("""
 <style>
     .stButton button {
@@ -20,9 +20,6 @@ st.markdown("""
     .campeon-btn {
         height: 60px;
         font-size: 16px;
-    }
-    .partido-cerrado {
-        opacity: 0.7;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -78,25 +75,50 @@ partidos = data["partidos"]
 config = {str(r["clave"]).strip(): str(r["valor"]).strip() for r in data["config"]}
 
 # ==================================
-# VERIFICAR COLUMNA DE CAMPEÓN
+# VERIFICAR Y CREAR COLUMNA DE CAMPEÓN
 # ==================================
-col_campeon = None
-for col in df.columns:
-    if col.upper() in ["CAMPEON", "CAMPEÓN", "CAMPEON MUNDIAL"]:
-        col_campeon = col
-        break
+def asegurar_columna_campeon():
+    """Asegura que la columna CAMPEON existe en la hoja RESPUESTAS"""
+    global df
+    
+    # Obtener todas las columnas actuales
+    columnas_actuales = sheet.row_values(1)
+    columnas_actuales = [str(col).strip().upper() for col in columnas_actuales]
+    
+    # Verificar si CAMPEON existe (en cualquier variante)
+    col_campeon_existe = False
+    for col in columnas_actuales:
+        if col in ["CAMPEON", "CAMPEÓN", "CAMPEON MUNDIAL"]:
+            col_campeon_existe = True
+            break
+    
+    # Si no existe, agregarla
+    if not col_campeon_existe:
+        st.warning("⚙️ Configurando columna para selección de campeón...")
+        try:
+            # Agregar columna al final
+            sheet.add_cols(1)
+            # Actualizar el encabezado
+            nueva_col = len(columnas_actuales) + 1
+            sheet.update_cell(1, nueva_col, "CAMPEON")
+            
+            # Recargar datos
+            cargar_todo.clear()
+            data.update(cargar_todo())
+            df = pd.DataFrame(data["respuestas"])
+            if not df.empty:
+                df.columns = df.columns.str.strip()
+            
+            st.success("✅ Columna de campeón configurada correctamente")
+            st.rerun()
+            return True
+        except Exception as e:
+            st.error(f"❌ Error al configurar columna: {e}")
+            return False
+    return True
 
-if not col_campeon and not df.empty:
-    # Crear la columna si no existe
-    with st.spinner("Configurando columna para selección de campeón..."):
-        sheet.add_cols(1)
-        sheet.update_cell(1, len(df.columns) + 1, "CAMPEON")
-        cargar_todo.clear()
-        data.update(cargar_todo())
-        df = pd.DataFrame(data["respuestas"])
-        if not df.empty:
-            df.columns = df.columns.str.strip()
-        st.rerun()
+# Ejecutar verificación
+asegurar_columna_campeon()
 
 # ==================================
 # USUARIO
@@ -116,18 +138,8 @@ usuarios_actuales = [
 
 # Registro
 if nombre not in usuarios_actuales:
-
-    # Segunda verificación para evitar duplicados
-    usuarios_actuales = [
-        str(x).strip().upper()
-        for x in sheet.col_values(1)[1:]
-    ]
-
-    if nombre not in usuarios_actuales:
-        sheet.append_row([nombre])
-
+    sheet.append_row([nombre])
     cargar_todo.clear()
-
     st.success(f"✅ Usuario {nombre} registrado")
     st.rerun()
 
@@ -138,9 +150,8 @@ st.info(f"👋 Hola {nombre}")
 # ==================================
 def obtener_campeones_disponibles():
     """Retorna la lista de equipos disponibles para campeón"""
-    equipos = ["Argentina", "Bélgica", "España", "Francia", 
-               "Inglaterra", "Marruecos", "Noruega", "Suiza"]
-    return equipos  # Ya están ordenados
+    return ["Argentina", "Bélgica", "España", "Francia", 
+            "Inglaterra", "Marruecos", "Noruega", "Suiza"]
 
 def obtener_campeon_usuario():
     """Obtiene el campeón seleccionado por el usuario"""
@@ -181,6 +192,10 @@ def guardar_campeon(equipo):
             col_campeon = col
             break
     
+    if not col_campeon:
+        st.error("❌ No se encontró la columna de campeón")
+        return False
+    
     # Buscar la fila del usuario
     fila_usuario = df[df["Nombre"].str.upper() == nombre]
     if fila_usuario.empty:
@@ -205,7 +220,7 @@ def guardar_campeon(equipo):
     return True
 
 # ==================================
-# 🏆 SELECCIÓN DE CAMPEÓN
+# 🏆 SELECCIÓN DE CAMPEÓN (SIEMPRE VISIBLE)
 # ==================================
 st.header("🏆 Selecciona tu Campeón Mundial")
 
@@ -221,7 +236,7 @@ if campeon_actual:
         else:
             st.error(f"❌ El campeón fue {campeon_real}, tú elegiste {campeon_actual}")
 else:
-    st.info("Selecciona tu campeón para el Mundial 2026:")
+    st.info("📌 Selecciona tu campeón para el Mundial 2026:")
     st.caption("⚠️ **Importante:** Una vez seleccionado, no podrás cambiarlo")
     
     # Mostrar botones para seleccionar campeón
@@ -233,7 +248,7 @@ else:
     for i, equipo in enumerate(equipos):
         col_idx = i % 4
         if cols[col_idx].button(
-            equipo, 
+            f"🏆 {equipo}", 
             key=f"campeon_{equipo}", 
             use_container_width=True,
             type="primary"
@@ -244,8 +259,7 @@ else:
             else:
                 st.error("❌ Error al guardar la selección")
     
-    if not campeon_actual:
-        st.caption("🔒 La selección de campeón es definitiva y no se puede cambiar después de guardar")
+    st.caption("🔒 La selección de campeón es definitiva y no se puede cambiar después de guardar")
 
 st.divider()
 
@@ -329,13 +343,11 @@ st.divider()
 # FUNCIONES
 # ==================================
 def partido_abierto(pid):
-    """Verifica si un partido está abierto para pronosticar"""
     if config.get("estado") == "cerrado":
         return False
     return config.get(pid, "abierto") == "abierto"
 
 def ya_guardado(pid):
-    """Verifica si el usuario ya guardó un pronóstico para este partido"""
     if df.empty or "Nombre" not in df.columns:
         return False
 
@@ -347,7 +359,6 @@ def ya_guardado(pid):
     return pd.notna(valor) and str(valor).strip() != ""
 
 def obtener_valor_guardado(pid):
-    """Obtiene el valor guardado para un partido"""
     if df.empty or "Nombre" not in df.columns:
         return None
     
@@ -391,7 +402,7 @@ def guardar_masivo():
             valor_actual = fila_usuario.iloc[0].get(pid)
 
             if pd.notna(valor_actual) and str(valor_actual).strip() != "":
-                continue  # No permitir sobrescribir
+                continue
 
         fila = nombres.index(nombre) + 2
         col = columnas.index(pid) + 1
@@ -409,7 +420,6 @@ def guardar_masivo():
 
     sheet.batch_update(updates)
 
-    # Guardar en session_state para mostrar mensaje después del rerun
     for pid, valor in cambios.items():
         st.session_state[f"guardado_{pid}"] = valor
 
@@ -421,9 +431,6 @@ def guardar_masivo():
 # FUNCIÓN PARA OBTENER TÍTULO DE RONDA
 # ==================================
 def obtener_titulo_ronda(partido_id):
-    """
-    Devuelve el título de la ronda según el número de partido
-    """
     if 73 <= partido_id <= 88:
         return "🏆 16AVOS DE FINAL"
     elif 89 <= partido_id <= 96:
@@ -443,7 +450,6 @@ def obtener_titulo_ronda(partido_id):
 # RENDER
 # ==================================
 def render_partido(pid, a, b):
-    # Limpiar el ID para obtener solo el número
     try:
         pid_limpio = ''.join(filter(str.isdigit, str(pid)))
         partido_id = int(pid_limpio) if pid_limpio else 0
@@ -454,40 +460,30 @@ def render_partido(pid, a, b):
     bloqueado = ya_guardado(pid)
     abierto = partido_abierto(pid)
     
-    # Obtener resultados reales
     resultados = {
         str(r["ID"]).strip(): str(r["Resultado"]).strip().upper()
         for r in data["resultados"] if r["Resultado"]
     }
     resultado_real = resultados.get(pid, None)
-    
-    # Obtener valor guardado si existe
     valor_guardado = obtener_valor_guardado(pid)
 
-    # 🔥 Mostrar mensaje de guardado si existe en session_state
     if f"guardado_{pid}" in st.session_state:
         st.success(f"✅ Guardado: {st.session_state[f'guardado_{pid}']}")
 
-    # Mostrar estado del partido
     if not abierto:
         st.caption("🔒 Partido cerrado")
 
-    # MOSTRAR PREDICCIÓN GUARDADA
     if bloqueado and valor_guardado:
         if resultado_real:
-            # Si hay resultado real, mostrar si acertó o falló
             if valor_guardado.upper() == resultado_real:
                 st.success(f"✅ Correcto: {valor_guardado}")
             else:
                 st.warning(f"❌ Incorrecto: {valor_guardado}")
         else:
-            # Si no hay resultado real aún, mostrar en AZUL
             st.info(f"📝 Pronóstico: {valor_guardado}")
     
-    # Botones para pronosticar (solo si está abierto y no bloqueado)
     if abierto and not bloqueado:
         if es_eliminatoria:
-            # PARTIDOS 73+: SOLO 2 BOTONES (A y B) - SIN EMPATE
             col1, col2 = st.columns(2)
             
             if col1.button(a, key=f"{pid}_A", use_container_width=True):
@@ -497,7 +493,6 @@ def render_partido(pid, a, b):
                 st.session_state["cambios"][pid] = "B"
 
         else:
-            # PARTIDOS 1-72: 3 BOTONES (A, Empate, B)
             col1, col2, col3 = st.columns(3)
 
             if col1.button(a, key=f"{pid}_A", use_container_width=True):
@@ -509,7 +504,6 @@ def render_partido(pid, a, b):
             if col3.button(b, key=f"{pid}_B", use_container_width=True):
                 st.session_state["cambios"][pid] = "B"
 
-    # Mostrar selección actual (no guardada)
     if pid in st.session_state["cambios"]:
         st.caption(f"📌 Seleccionado: {st.session_state['cambios'][pid]}")
 
@@ -524,8 +518,6 @@ grupo_actual = ""
 ronda_actual = None
 
 for p in partidos:
-
-    # Obtener ID limpio
     pid = str(p["ID"]).strip()
     try:
         pid_limpio = ''.join(filter(str.isdigit, str(pid)))
@@ -535,13 +527,11 @@ for p in partidos:
     
     grupo = str(p["GRUPO"]).strip()
 
-    # Mostrar título de grupo solo para partidos de fase de grupos (1-72)
     if partido_id < 73:
         if grupo != grupo_actual:
             st.header(f"🏆 {grupo}")
             grupo_actual = grupo
     else:
-        # Para partidos de eliminación (73+), mostrar título de ronda UNA SOLA VEZ
         titulo_ronda = obtener_titulo_ronda(partido_id)
         if titulo_ronda and titulo_ronda != ronda_actual:
             st.header(titulo_ronda)
