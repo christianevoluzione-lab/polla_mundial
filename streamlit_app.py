@@ -153,6 +153,8 @@ with st.expander("🏆 Elige tu Campeón", expanded=True):
     
     # Verificar si el usuario ya eligió campeón
     campeon_actual = ""
+    ya_eligio=False
+    
     if not df.empty and "CAMPEON" in df.columns:
         fila_usuario = df[df["Nombre"].str.upper() == nombre]
         if not fila_usuario.empty:
