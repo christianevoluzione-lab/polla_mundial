@@ -302,34 +302,21 @@ def mostrar_modal_campeon():
                 <div class="modal-grid">
         """, unsafe_allow_html=True)
         
-        # Crear botones para cada equipo usando HTML con JavaScript
-        for equipo in equipos_cuartos:
+        # Crear botones para cada equipo
+        cols = st.columns(2)
+        for idx, equipo in enumerate(equipos_cuartos):
             bandera = banderas.get(equipo, "⚽")
-            # Usar un botón HTML con onclick para llamar a la función de Streamlit
-            st.markdown(f"""
-                <button class="modal-team-btn" onclick="
-                    const btn = document.createElement('button');
-                    btn.style.display = 'none';
-                    btn.setAttribute('data-testid', 'baseButton-secondary');
-                    btn.id = 'btn_{equipo.replace(' ', '_')}';
-                    document.body.appendChild(btn);
-                    btn.click();
-                ">
-                    {bandera} {equipo}
-                </button>
-            """, unsafe_allow_html=True)
-            
-            # Botón oculto de Streamlit para cada equipo
-            if st.button(f"{bandera} {equipo}", 
-                       key=f"btn_campeon_{equipo}",
-                       use_container_width=True,
-                       type="primary",
-                       hidden=True):
-                guardar_campeon(equipo)
+            col = cols[idx % 2]
+            with col:
+                if st.button(f"{bandera} {equipo}", 
+                           key=f"btn_campeon_{equipo}",
+                           use_container_width=True,
+                           type="primary"):
+                    guardar_campeon(equipo)
         
         st.markdown("""
                 </div>
-                <button class="modal-close-btn" onclick="document.getElementById('btn_cerrar_modal').click();">
+                <button class="modal-close-btn" onclick="document.getElementById('btn_cerrar_modal_visible').click();">
                     ⏭️ Saltar por ahora
                 </button>
             </div>
@@ -342,13 +329,11 @@ def mostrar_modal_campeon():
             st.session_state.campeon_confirmado = False
             st.rerun()
         
-        # También agregar un botón visible para cerrar
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            if st.button("⏭️ Saltar por ahora", key="btn_saltar_visible", use_container_width=True):
-                st.session_state.mostrar_modal = False
-                st.session_state.campeon_confirmado = False
-                st.rerun()
+        # Botón visible para cerrar
+        if st.button("⏭️ Saltar por ahora", key="btn_cerrar_modal_visible", use_container_width=True):
+            st.session_state.mostrar_modal = False
+            st.session_state.campeon_confirmado = False
+            st.rerun()
         
         st.stop()
 
