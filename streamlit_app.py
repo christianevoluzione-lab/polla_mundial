@@ -143,7 +143,6 @@ with st.expander("🏆 Ranking"):
     else:
         st.info("Sin resultados todavía")
 
-
 # ==================================
 # SELECCIÓN DE CAMPEÓN
 # ==================================
@@ -193,26 +192,48 @@ with st.expander("🏆 Elige tu Campeón", expanded=True):
                 # Guardar en mayúsculas
                 equipo_guardar = equipo_seleccionado.upper()
                 
-                # Obtener la fila del usuario
-                nombres = df["Nombre"].astype(str).str.upper().tolist()
-                fila_usuario = nombres.index(nombre) + 2
+                # Buscar el nombre del usuario en la columna A (primera columna)
+                nombres_columna = sheet.col_values(1)  # Columna A
                 
-                # Obtener la columna CAMPEON
+                # Encontrar la fila del usuario (empezando desde fila 2)
+                fila_usuario = None
+                for i, nombre_hoja in enumerate(nombres_columna[1:], start=2):  # Desde fila 2
+                    if str(nombre_hoja).strip().upper() == nombre:
+                        fila_usuario = i
+                        break
+                
+                if fila_usuario is None:
+                    st.error("No se encontró el usuario en la hoja")
+                    st.stop()
+                
+                # Obtener los headers de la primera fila
                 headers = sheet.row_values(1)
+                
+                # Verificar si existe la columna CAMPEON
+                if "CAMPEON" not in headers:
+                    # Agregar la columna CAMPEON al final
+                    sheet.update_cell(1, len(headers) + 1, "CAMPEON")
+                    headers = sheet.row_values(1)  # Recargar headers
+                
+                # Obtener el número de columna de CAMPEON
                 col_campeon = headers.index("CAMPEON") + 1
-                celda = rowcol_to_a1(fila_usuario, col_campeon)
                 
-                # Guardar la elección en mayúsculas
-                sheet.update(celda, equipo_guardar)
+                # Actualizar directamente la celda
+                sheet.update_cell(fila_usuario, col_campeon, equipo_guardar)
                 
+                # Limpiar cache y recargar
                 cargar_todo.clear()
+                
                 st.success(f"✅ ¡Has elegido a {equipo_guardar} como campeón!")
                 time.sleep(1)
                 st.rerun()
             except Exception as e:
                 st.error(f"Error al guardar: {e}")
+                st.error("Verifica que la columna se llame exactamente 'CAMPEON' en la hoja RESPUESTAS")
         else:
             st.warning("Por favor selecciona un equipo")
+
+
 # ==================================
 # FUNCIONES
 # ==================================
