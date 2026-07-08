@@ -61,6 +61,27 @@ partidos = data["partidos"]
 config = {str(r["clave"]).strip(): str(r["valor"]).strip() for r in data["config"]}
 
 # ==================================
+# VERIFICAR COLUMNA DE CAMPEÓN
+# ==================================
+col_campeon = None
+for col in df.columns:
+    if col.upper() in ["CAMPEON", "CAMPEÓN", "CAMPEON MUNDIAL"]:
+        col_campeon = col
+        break
+
+if not col_campeon and not df.empty:
+    # Crear la columna si no existe
+    st.warning("Configurando columna para selección de campeón...")
+    sheet.add_cols(1)
+    sheet.update_cell(1, len(df.columns) + 1, "CAMPEON")
+    cargar_todo.clear()
+    data.update(cargar_todo())
+    df = pd.DataFrame(data["respuestas"])
+    if not df.empty:
+        df.columns = df.columns.str.strip()
+    st.rerun()
+
+# ==================================
 # USUARIO
 # ==================================
 nombre = st.text_input("Ingresa tu nombre")
@@ -94,6 +115,79 @@ if nombre not in usuarios_actuales:
     st.rerun()
 
 st.info(f"Hola {nombre}")
+
+# ==================================
+# FUNCIONES DE CAMPEÓN
+# ==================================
+def obtener_campeones_disponibles():
+    """Retorna la lista de equipos disponibles para campeón"""
+    equipos = ["Francia", "Marruecos", "España", "Bélgica", 
+               "Noruega", "Inglaterra", "Argentina", "Suiza"]
+    # Ordenar alfabéticamente
+    return sorted(equipos)
+
+def obtener_campeon_usuario():
+    """Obtiene el campeón seleccionado por el usuario"""
+    if df.empty or "Nombre" not in df.columns:
+        return None
+    
+    fila = df[df["Nombre"].str.upper() == nombre]
+    if fila.empty:
+        return None
+    
+    # Buscar columna de campeón
+    col_campeon = None
+    for col in df.columns:
+        if col.upper() in ["CAMPEON", "CAMPEÓN", "CAMPEON MUNDIAL"]:
+            col_campeon = col
+            break
+    
+    if col_campeon and not fila.empty:
+        valor = fila.iloc[0].get(col_campeon)
+        if pd.notna(valor) and str(valor).strip() != "":
+            return str(valor).strip()
+    return None
+
+def guardar_campeon(equipo):
+    """Guarda la selección del campeón en la hoja de cálculo"""
+    if not equipo:
+        return False
+    
+    # Verificar si el usuario ya tiene seleccionado un campeón
+    if obtener_campeon_usuario():
+        st.warning("Ya tienes un campeón seleccionado. No puedes cambiarlo.")
+        return False
+    
+    # Encontrar la columna de campeón
+    col_campeon = None
+    for col in df.columns:
+        if col.upper() in ["CAMPEON", "CAMPEÓN", "CAMPEON MUNDIAL"]:
+            col_campeon = col
+            break
+    
+    # Buscar la fila del usuario
+    fila_usuario = df[df["Nombre"].str.upper() == nombre]
+    if fila_usuario.empty:
+        return False
+    
+    # Obtener posición
+    fila_idx = df[df["Nombre"].str.upper() == nombre].index[0] + 2  # +2 por header y 0-index
+    col_idx = df.columns.get_loc(col_campeon) + 1  # +1 por 0-index
+    
+    # Guardar en la hoja
+    celda = rowcol_to_a1(fila_idx, col_idx)
+    sheet.update_acell(celda, equipo)
+    
+    # Actualizar el DataFrame global
+    global df
+    cargar_todo.clear()
+    data.update(cargar_todo())
+    df = pd.DataFrame(data["respuestas"])
+    if not df.empty:
+        df.columns = df.columns.str.strip()
+    
+    return True
+
 # ==================================
 # RANKING
 # ==================================
@@ -105,11 +199,21 @@ def calcular_ranking():
         str(r["ID"]).strip(): str(r["Resultado"]).strip().upper()
         for r in data["resultados"] if r["Resultado"]
     }
+    
+    # Obtener el campeón real
+    campeon_real = config.get("campeon_real", "").strip().upper()
+    
+    # Obtener la columna de campeón
+    col_campeon = None
+    for col in df.columns:
+        if col.upper() in ["CAMPEON", "CAMPEÓN", "CAMPEON MUNDIAL"]:
+            col_campeon = col
+            break
 
     for _, fila in df.iterrows():
-
         aciertos = 0
         total = 0
+        puntos_extra = 0
 
         for partido, real in resultados.items():
 
@@ -122,12 +226,18 @@ def calcular_ranking():
                 total += 1
                 if str(resp).upper() == real:
                     aciertos += 1
+        
+        # Verificar campeón
+        if campeon_real and col_campeon:
+            campeon_usuario = str(fila.get(col_campeon, "")).strip().upper()
+            if campeon_usuario and campeon_usuario == campeon_real:
+                puntos_extra = 5  # +5 puntos extra
 
         porcentaje = round((aciertos / total) * 100, 2) if total else 0
 
-        ranking.append((fila["Nombre"], aciertos, total, porcentaje))
+        ranking.append((fila["Nombre"], aciertos, total, porcentaje, puntos_extra))
 
-    ranking.sort(key=lambda x: x[1], reverse=True)
+    ranking.sort(key=lambda x: (x[1] + x[4]), reverse=True)
 
     return ranking
 
@@ -136,12 +246,61 @@ with st.expander("🏆 Ranking"):
     ranking = calcular_ranking()
 
     if ranking:
-        st.dataframe(pd.DataFrame(
+        df_ranking = pd.DataFrame(
             ranking,
-            columns=["Nombre", "Aciertos", "Total", "%"]
-        ))
+            columns=["Nombre", "Aciertos", "Total", "%", "Puntos Extra"]
+        )
+        # Calcular puntaje total
+        df_ranking["Puntaje Total"] = df_ranking["Aciertos"] + df_ranking["Puntos Extra"]
+        # Reordenar columnas
+        df_ranking = df_ranking[["Nombre", "Aciertos", "Puntos Extra", "Puntaje Total", "Total", "%"]]
+        st.dataframe(df_ranking, use_container_width=True)
+        
+        # Mostrar líder
+        if not df_ranking.empty:
+            lider = df_ranking.iloc[0]
+            st.success(f"🏅 Líder: {lider['Nombre']} con {lider['Puntaje Total']} puntos")
     else:
         st.info("Sin resultados todavía")
+
+# ==================================
+# SELECCIÓN DE CAMPEÓN
+# ==================================
+with st.expander("🏆 Selección de Campeón", expanded=False):
+    st.markdown("### Elige al campeón del mundial")
+    st.caption("⚠️ **Importante:** Una vez seleccionado el campeón, no podrás cambiarlo")
+    
+    campeon_actual = obtener_campeon_usuario()
+    campeon_real = config.get("campeon_real", "").strip()
+    
+    if campeon_actual:
+        if campeon_real:
+            if campeon_actual.upper() == campeon_real.upper():
+                st.success(f"✅ ¡Acertaste! Elegiste a {campeon_actual} como campeón y ganaste +5 puntos extra")
+            else:
+                st.error(f"❌ El campeón fue {campeon_real}, tú elegiste {campeon_actual}")
+        else:
+            st.info(f"🏆 Has elegido a {campeon_actual} como campeón")
+    else:
+        # Mostrar botones para seleccionar campeón
+        equipos = obtener_campeones_disponibles()
+        
+        st.write("Selecciona tu campeón:")
+        
+        # Crear columnas para los botones (4 columnas)
+        cols = st.columns(4)
+        
+        for i, equipo in enumerate(equipos):
+            col_idx = i % 4
+            if cols[col_idx].button(equipo, key=f"campeon_{equipo}", use_container_width=True):
+                if guardar_campeon(equipo):
+                    st.success(f"✅ Has seleccionado a {equipo} como campeón")
+                    st.rerun()
+                else:
+                    st.error("Error al guardar la selección")
+    
+    if not campeon_actual:
+        st.caption("🔒 La selección de campeón es definitiva y no se puede cambiar después de guardar")
 
 # ==================================
 # FUNCIONES
@@ -267,8 +426,6 @@ def render_partido(pid, a, b):
     # 🔥 Mostrar mensaje de guardado si existe en session_state
     if f"guardado_{pid}" in st.session_state:
         st.success(f"✅ Guardado: {st.session_state[f'guardado_{pid}']}")
-        # Eliminar el mensaje después de mostrarlo para que no se acumule
-        # del st.session_state[f"guardado_{pid}"]
 
     if es_eliminatoria:
         # PARTIDOS 73+: SOLO 2 BOTONES (A y B) - SIN EMPATE
@@ -364,11 +521,3 @@ for p in partidos:
 # BOTÓN GUARDAR
 # ==================================
 st.button("💾 Guardar pronósticos", on_click=guardar_masivo)
-
-
-# ================================
-# NOTA
-# ================================
-# Este archivo es el original. La modificación completa solicitada
-# requiere editar múltiples secciones y excede el límite de respuesta
-# del chat, por lo que no puede generarse íntegramente aquí.
