@@ -39,6 +39,7 @@ sheet = spreadsheet.worksheet("RESPUESTAS")
 sheet_partidos = spreadsheet.worksheet("PARTIDOS")
 sheet_config = spreadsheet.worksheet("CONFIG")
 sheet_resultados = spreadsheet.worksheet("RESULTADOS")
+
 # ==================================
 # CARGA
 # ==================================
@@ -189,6 +190,51 @@ def guardar_campeon(equipo):
     return True
 
 # ==================================
+# 🏆 SELECCIÓN DE CAMPEÓN (AHORA AL INICIO)
+# ==================================
+st.header("🏆 Selecciona tu Campeón Mundial")
+
+campeon_actual = obtener_campeon_usuario()
+campeon_real = config.get("campeon_real", "").strip()
+
+if campeon_actual:
+    st.success(f"🏆 Has elegido a **{campeon_actual}** como campeón del mundo")
+    
+    if campeon_real:
+        if campeon_actual.upper() == campeon_real.upper():
+            st.success(f"✅ ¡ACERTASTE! El campeón fue {campeon_real} ➕ +5 puntos extra")
+        else:
+            st.error(f"❌ El campeón fue {campeon_real}, tú elegiste {campeon_actual}")
+else:
+    st.info("Selecciona tu campeón para el Mundial 2026:")
+    st.caption("⚠️ **Importante:** Una vez seleccionado, no podrás cambiarlo")
+    
+    # Mostrar botones para seleccionar campeón
+    equipos = obtener_campeones_disponibles()
+    
+    # Crear columnas para los botones (4 columnas)
+    cols = st.columns(4)
+    
+    for i, equipo in enumerate(equipos):
+        col_idx = i % 4
+        if cols[col_idx].button(
+            equipo, 
+            key=f"campeon_{equipo}", 
+            use_container_width=True,
+            type="primary"  # Botón más destacado
+        ):
+            if guardar_campeon(equipo):
+                st.success(f"✅ Has seleccionado a {equipo} como campeón")
+                st.rerun()
+            else:
+                st.error("Error al guardar la selección")
+    
+    if not campeon_actual:
+        st.caption("🔒 La selección de campeón es definitiva y no se puede cambiar después de guardar")
+
+st.divider()
+
+# ==================================
 # RANKING
 # ==================================
 def calcular_ranking():
@@ -241,8 +287,7 @@ def calcular_ranking():
 
     return ranking
 
-with st.expander("🏆 Ranking"):
-
+with st.expander("🏆 Ranking de la Polla", expanded=True):
     ranking = calcular_ranking()
 
     if ranking:
@@ -263,44 +308,7 @@ with st.expander("🏆 Ranking"):
     else:
         st.info("Sin resultados todavía")
 
-# ==================================
-# SELECCIÓN DE CAMPEÓN
-# ==================================
-with st.expander("🏆 Selección de Campeón", expanded=False):
-    st.markdown("### Elige al campeón del mundial")
-    st.caption("⚠️ **Importante:** Una vez seleccionado el campeón, no podrás cambiarlo")
-    
-    campeon_actual = obtener_campeon_usuario()
-    campeon_real = config.get("campeon_real", "").strip()
-    
-    if campeon_actual:
-        if campeon_real:
-            if campeon_actual.upper() == campeon_real.upper():
-                st.success(f"✅ ¡Acertaste! Elegiste a {campeon_actual} como campeón y ganaste +5 puntos extra")
-            else:
-                st.error(f"❌ El campeón fue {campeon_real}, tú elegiste {campeon_actual}")
-        else:
-            st.info(f"🏆 Has elegido a {campeon_actual} como campeón")
-    else:
-        # Mostrar botones para seleccionar campeón
-        equipos = obtener_campeones_disponibles()
-        
-        st.write("Selecciona tu campeón:")
-        
-        # Crear columnas para los botones (4 columnas)
-        cols = st.columns(4)
-        
-        for i, equipo in enumerate(equipos):
-            col_idx = i % 4
-            if cols[col_idx].button(equipo, key=f"campeon_{equipo}", use_container_width=True):
-                if guardar_campeon(equipo):
-                    st.success(f"✅ Has seleccionado a {equipo} como campeón")
-                    st.rerun()
-                else:
-                    st.error("Error al guardar la selección")
-    
-    if not campeon_actual:
-        st.caption("🔒 La selección de campeón es definitiva y no se puede cambiar después de guardar")
+st.divider()
 
 # ==================================
 # FUNCIONES
