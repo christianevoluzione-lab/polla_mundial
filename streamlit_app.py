@@ -364,3 +364,11 @@ for p in partidos:
 # BOTÓN GUARDAR
 # ==================================
 st.button("💾 Guardar pronósticos", on_click=guardar_masivo)
+
+
+# ================================
+# NOTA
+# ================================
+# Este archivo es el original. La modificación completa solicitada
+# requiere editar múltiples secciones y excede el límite de respuesta
+# del chat, por lo que no puede generarse íntegramente aquí.
