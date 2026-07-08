@@ -62,41 +62,28 @@ partidos = data["partidos"]
 config = {str(r["clave"]).strip(): str(r["valor"]).strip() for r in data["config"]}
 
 # ==================================
-# VERIFICAR COLUMNA DE CAMPEÓN
+# ENCONTRAR COLUMNA DE CAMPEÓN (SIN IMPORTAR MAYÚSCULAS)
 # ==================================
-def verificar_columna_campeon():
-    """Verifica y crea la columna de campeón si no existe"""
-    global df, data
-    
-    # Verificar si existe columna de campeón
-    col_exists = False
-    for col in df.columns:
-        if col.upper() in ["CAMPEON", "CAMPEÓN", "CAMPEON MUNDIAL"]:
-            col_exists = True
-            break
-    
-    if not col_exists and not df.empty:
-        try:
-            # Agregar columna
-            sheet.add_cols(1)
-            sheet.update_cell(1, len(df.columns) + 1, "CAMPEON")
-            
-            # Recargar datos
-            cargar_todo.clear()
-            data = cargar_todo()
-            df = pd.DataFrame(data["respuestas"])
-            if not df.empty:
-                df.columns = df.columns.str.strip()
-            
-            st.rerun()
-            return True
-        except Exception as e:
-            st.error(f"Error al crear columna: {e}")
-            return False
-    return True
+col_campeon = None
+for col in df.columns:
+    if col.upper() == "CAMPEON":
+        col_campeon = col
+        break
 
-# Ejecutar verificación
-verificar_columna_campeon()
+# Si no se encuentra, crear una
+if col_campeon is None:
+    try:
+        sheet.add_cols(1)
+        sheet.update_cell(1, len(df.columns) + 1, "CAMPEON")
+        cargar_todo.clear()
+        data = cargar_todo()
+        df = pd.DataFrame(data["respuestas"])
+        if not df.empty:
+            df.columns = df.columns.str.strip()
+        col_campeon = "CAMPEON"
+        st.rerun()
+    except Exception as e:
+        st.error(f"Error creando columna: {e}")
 
 # ==================================
 # USUARIO
@@ -120,91 +107,39 @@ if nombre not in usuarios_actuales:
 st.info(f"👋 Hola {nombre}")
 
 # ==================================
-# FUNCIONES DE CAMPEÓN
-# ==================================
-def obtener_campeones():
-    """Lista de equipos para campeón"""
-    return ["Argentina", "Bélgica", "España", "Francia", 
-            "Inglaterra", "Marruecos", "Noruega", "Suiza"]
-
-def obtener_campeon_usuario():
-    """Obtiene el campeón seleccionado por el usuario actual"""
-    if df.empty or "Nombre" not in df.columns:
-        return None
-    
-    fila = df[df["Nombre"].str.upper() == nombre]
-    if fila.empty:
-        return None
-    
-    # Buscar columna de campeón
-    for col in df.columns:
-        if col.upper() in ["CAMPEON", "CAMPEÓN", "CAMPEON MUNDIAL"]:
-            valor = fila.iloc[0].get(col)
-            if pd.notna(valor) and str(valor).strip() != "":
-                return str(valor).strip()
-            break
-    return None
-
-def guardar_campeon(equipo):
-    """Guarda la selección del campeón"""
-    if not equipo:
-        return False
-    
-    # Verificar si ya tiene selección
-    if obtener_campeon_usuario():
-        st.warning("⚠️ Ya tienes un campeón seleccionado")
-        return False
-    
-    # Encontrar columna de campeón
-    col_campeon = None
-    for col in df.columns:
-        if col.upper() in ["CAMPEON", "CAMPEÓN", "CAMPEON MUNDIAL"]:
-            col_campeon = col
-            break
-    
-    if not col_campeon:
-        st.error("❌ No se encontró la columna de campeón")
-        return False
-    
-    # Obtener posición
-    fila_idx = df[df["Nombre"].str.upper() == nombre].index[0] + 2
-    col_idx = df.columns.get_loc(col_campeon) + 1
-    celda = rowcol_to_a1(fila_idx, col_idx)
-    
-    # Guardar
-    sheet.update_acell(celda, equipo)
-    
-    # Recargar datos
-    cargar_todo.clear()
-    global data, df
-    data = cargar_todo()
-    df = pd.DataFrame(data["respuestas"])
-    if not df.empty:
-        df.columns = df.columns.str.strip()
-    
-    return True
-
-# ==================================
 # 🏆 SELECCIÓN DE CAMPEÓN
 # ==================================
 st.header("🏆 Selecciona tu Campeón Mundial")
 
-campeon_actual = obtener_campeon_usuario()
-campeon_real = config.get("campeon_real", "").strip()
+# Obtener selección actual
+campeon_usuario = None
+if col_campeon and not df.empty and "Nombre" in df.columns:
+    fila_usuario = df[df["Nombre"].str.upper() == nombre]
+    if not fila_usuario.empty:
+        valor = fila_usuario.iloc[0].get(col_campeon)
+        if pd.notna(valor) and str(valor).strip() != "":
+            campeon_usuario = str(valor).strip()
 
-if campeon_actual:
-    st.success(f"🏆 Has elegido a **{campeon_actual}** como campeón")
+# Mostrar estado actual
+if campeon_usuario:
+    st.success(f"🏆 Has elegido a **{campeon_usuario}** como campeón")
     
+    # Verificar si acertó
+    campeon_real = config.get("campeon_real", "").strip()
     if campeon_real:
-        if campeon_actual.upper() == campeon_real.upper():
-            st.success(f"✅ ¡ACERTASTE! +5 puntos extra")
+        if campeon_usuario.upper() == campeon_real.upper():
+            st.success("✅ ¡ACERTASTE EL CAMPEÓN! +5 puntos extra")
         else:
-            st.error(f"❌ El campeón fue {campeon_real}")
+            st.error(f"❌ El campeón fue {campeon_real}, tú elegiste {campeon_usuario}")
 else:
-    st.info("📌 Selecciona tu campeón:")
-    st.caption("⚠️ No podrás cambiarlo después")
+    st.info("📌 Selecciona tu campeón para el Mundial 2026:")
+    st.caption("⚠️ **Importante:** Una vez seleccionado, no podrás cambiarlo")
     
-    equipos = obtener_campeones()
+    # Equipos disponibles
+    equipos = ["Argentina", "Bélgica", "España", "Francia", 
+               "Inglaterra", "Marruecos", "Noruega", "Suiza"]
+    
+    # Botones en 4 columnas
     cols = st.columns(4)
     
     for i, equipo in enumerate(equipos):
@@ -215,9 +150,19 @@ else:
             use_container_width=True,
             type="primary"
         ):
-            if guardar_campeon(equipo):
-                st.success(f"✅ Has seleccionado a {equipo}")
-                st.rerun()
+            # Guardar selección
+            try:
+                if col_campeon and not df.empty and "Nombre" in df.columns:
+                    idx_usuario = df[df["Nombre"].str.upper() == nombre].index
+                    if not idx_usuario.empty:
+                        fila = idx_usuario[0] + 2
+                        col = df.columns.get_loc(col_campeon) + 1
+                        celda = rowcol_to_a1(fila, col)
+                        sheet.update_acell(celda, equipo)
+                        st.success(f"✅ Has seleccionado a {equipo} como campeón")
+                        st.rerun()
+            except Exception as e:
+                st.error(f"Error al guardar: {e}")
 
 st.divider()
 
@@ -233,20 +178,13 @@ def calcular_ranking():
     }
     
     campeon_real = config.get("campeon_real", "").strip().upper()
-    
-    # Encontrar columna de campeón
-    col_campeon = None
-    for col in df.columns:
-        if col.upper() in ["CAMPEON", "CAMPEÓN", "CAMPEON MUNDIAL"]:
-            col_campeon = col
-            break
 
     for _, fila in df.iterrows():
         aciertos = 0
         total = 0
         puntos_extra = 0
 
-        # Calcular aciertos
+        # Calcular aciertos de partidos
         for partido, real in resultados.items():
             if partido not in df.columns:
                 continue
@@ -258,8 +196,8 @@ def calcular_ranking():
         
         # Verificar campeón
         if campeon_real and col_campeon:
-            campeon_usuario = str(fila.get(col_campeon, "")).strip().upper()
-            if campeon_usuario and campeon_usuario == campeon_real:
+            campeon_usuario_val = str(fila.get(col_campeon, "")).strip().upper()
+            if campeon_usuario_val and campeon_usuario_val == campeon_real:
                 puntos_extra = 5
 
         porcentaje = round((aciertos / total) * 100, 2) if total else 0
@@ -325,7 +263,7 @@ if "cambios" not in st.session_state:
 def guardar_masivo():
     cambios = st.session_state["cambios"]
     if not cambios:
-        st.warning("⚠️ No hay cambios")
+        st.warning("⚠️ No hay cambios para guardar")
         return
     
     nombres = df["Nombre"].astype(str).str.upper().tolist()
@@ -345,14 +283,14 @@ def guardar_masivo():
         updates.append({"range": celda, "values": [[valor]]})
     
     if not updates:
-        st.warning("⚠️ Ya guardados")
+        st.warning("⚠️ Todos esos partidos ya fueron guardados")
         return
     
     sheet.batch_update(updates)
     for pid, valor in cambios.items():
         st.session_state[f"guardado_{pid}"] = valor
     
-    st.success("✅ Guardados")
+    st.success("✅ Pronósticos guardados correctamente")
     st.session_state["cambios"] = {}
     st.rerun()
 
