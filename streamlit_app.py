@@ -144,6 +144,100 @@ with st.expander("🏆 Ranking"):
         st.info("Sin resultados todavía")
 
 # ==================================
+# SELECCIÓN DE CAMPEÓN
+# ==================================
+with st.expander("🏆 Elige tu Campeón", expanded=True):
+    
+    # Verificar si el usuario ya eligió campeón
+    campeon_actual = ""
+    if not df.empty and "CAMPEON" in df.columns:
+        fila_usuario = df[df["Nombre"].str.upper() == nombre]
+        if not fila_usuario.empty:
+            campeon_actual = fila_usuario.iloc[0].get("CAMPEON")
+            if pd.notna(campeon_actual) and str(campeon_actual).strip() != "":
+                st.success(f"🏆 Tu campeón elegido: {campeon_actual}")
+                st.info("Si deseas cambiarlo, selecciona otro equipo abajo.")
+    
+    # Lista de los 8 clasificados a cuartos de final
+    equipos_cuartos = [
+        "Francia 🇫🇷", 
+        "Marruecos 🇲🇦", 
+        "España 🇪🇸", 
+        "Bélgica 🇧🇪",
+        "Noruega 🇳🇴", 
+        "Inglaterra 🏴󠁧󠁢󠁥󠁮󠁧󠁿", 
+        "Argentina 🇦🇷", 
+        "Suiza 🇨🇭"
+    ]
+    
+    # Selectbox para elegir campeón
+    campeon_seleccionado = st.selectbox(
+        "Selecciona tu campeón:",
+        options=[""] + equipos_cuartos,  # Opción vacía al inicio
+        key="select_campeon"
+    )
+    
+    # Botón para guardar
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("💾 Guardar Campeón", key="btn_guardar_campeon", use_container_width=True):
+            if campeon_seleccionado and campeon_seleccionado != "":
+                try:
+                    # Limpiar el nombre del equipo (quitar bandera)
+                    equipo_limpio = campeon_seleccionado.split(" ")[0] if " " in campeon_seleccionado else campeon_seleccionado
+                    
+                    # Obtener la fila del usuario
+                    nombres = df["Nombre"].astype(str).str.upper().tolist()
+                    fila_usuario = nombres.index(nombre) + 2
+                    
+                    # Obtener la columna CAMPEON
+                    headers = sheet.row_values(1)
+                    if "CAMPEON" not in headers:
+                        headers.append("CAMPEON")
+                        sheet.update_row(1, headers)
+                    
+                    col_campeon = headers.index("CAMPEON") + 1
+                    celda = rowcol_to_a1(fila_usuario, col_campeon)
+                    
+                    # Guardar la elección
+                    sheet.update(celda, equipo_limpio)
+                    
+                    cargar_todo.clear()
+                    st.success(f"✅ ¡Has elegido a {equipo_limpio} como campeón!")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al guardar: {e}")
+            else:
+                st.warning("Por favor selecciona un equipo")
+    
+    with col2:
+        if st.button("❌ Limpiar selección", key="btn_limpiar_campeon", use_container_width=True):
+            try:
+                # Obtener la fila del usuario
+                nombres = df["Nombre"].astype(str).str.upper().tolist()
+                fila_usuario = nombres.index(nombre) + 2
+                
+                # Obtener la columna CAMPEON
+                headers = sheet.row_values(1)
+                if "CAMPEON" not in headers:
+                    headers.append("CAMPEON")
+                    sheet.update_row(1, headers)
+                
+                col_campeon = headers.index("CAMPEON") + 1
+                celda = rowcol_to_a1(fila_usuario, col_campeon)
+                
+                # Limpiar la elección
+                sheet.update(celda, "")
+                
+                cargar_todo.clear()
+                st.success("✅ Selección de campeón eliminada")
+                time.sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al limpiar: {e}")
+
+# ==================================
 # FUNCIONES
 # ==================================
 def partido_abierto(pid):
