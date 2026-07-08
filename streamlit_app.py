@@ -143,6 +143,7 @@ with st.expander("🏆 Ranking"):
     else:
         st.info("Sin resultados todavía")
 
+
 # ==================================
 # SELECCIÓN DE CAMPEÓN
 # ==================================
@@ -171,72 +172,47 @@ with st.expander("🏆 Elige tu Campeón", expanded=True):
     ]
     
     # Selectbox para elegir campeón
-    campeon_seleccionado = st.selectbox(
+    opciones = ["Selecciona un equipo..."] + equipos_cuartos
+    
+    # Pre-seleccionar el campeón actual si existe
+    indice_actual = 0
+    if campeon_actual and campeon_actual in equipos_cuartos:
+        indice_actual = equipos_cuartos.index(campeon_actual) + 1
+    
+    equipo_seleccionado = st.selectbox(
         "Selecciona tu campeón:",
-        options=[""] + equipos_cuartos,  # Opción vacía al inicio
+        options=opciones,
+        index=indice_actual,
         key="select_campeon"
     )
     
     # Botón para guardar
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        if st.button("💾 Guardar Campeón", key="btn_guardar_campeon", use_container_width=True):
-            if campeon_seleccionado and campeon_seleccionado != "":
-                try:
-                    # Limpiar el nombre del equipo (quitar bandera)
-                    equipo_limpio = campeon_seleccionado.split(" ")[0] if " " in campeon_seleccionado else campeon_seleccionado
-                    
-                    # Obtener la fila del usuario
-                    nombres = df["Nombre"].astype(str).str.upper().tolist()
-                    fila_usuario = nombres.index(nombre) + 2
-                    
-                    # Obtener la columna CAMPEON
-                    headers = sheet.row_values(1)
-                    if "CAMPEON" not in headers:
-                        headers.append("CAMPEON")
-                        sheet.update_row(1, headers)
-                    
-                    col_campeon = headers.index("CAMPEON") + 1
-                    celda = rowcol_to_a1(fila_usuario, col_campeon)
-                    
-                    # Guardar la elección
-                    sheet.update(celda, equipo_limpio)
-                    
-                    cargar_todo.clear()
-                    st.success(f"✅ ¡Has elegido a {equipo_limpio} como campeón!")
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error al guardar: {e}")
-            else:
-                st.warning("Por favor selecciona un equipo")
-    
-    with col2:
-        if st.button("❌ Limpiar selección", key="btn_limpiar_campeon", use_container_width=True):
+    if st.button("💾 Guardar Campeón", key="btn_guardar_campeon", use_container_width=True):
+        if equipo_seleccionado and equipo_seleccionado != "Selecciona un equipo...":
             try:
+                # Guardar en mayúsculas
+                equipo_guardar = equipo_seleccionado.upper()
+                
                 # Obtener la fila del usuario
                 nombres = df["Nombre"].astype(str).str.upper().tolist()
                 fila_usuario = nombres.index(nombre) + 2
                 
                 # Obtener la columna CAMPEON
                 headers = sheet.row_values(1)
-                if "CAMPEON" not in headers:
-                    headers.append("CAMPEON")
-                    sheet.update_row(1, headers)
-                
                 col_campeon = headers.index("CAMPEON") + 1
                 celda = rowcol_to_a1(fila_usuario, col_campeon)
                 
-                # Limpiar la elección
-                sheet.update(celda, "")
+                # Guardar la elección en mayúsculas
+                sheet.update(celda, equipo_guardar)
                 
                 cargar_todo.clear()
-                st.success("✅ Selección de campeón eliminada")
+                st.success(f"✅ ¡Has elegido a {equipo_guardar} como campeón!")
                 time.sleep(1)
                 st.rerun()
             except Exception as e:
-                st.error(f"Error al limpiar: {e}")
-
+                st.error(f"Error al guardar: {e}")
+        else:
+            st.warning("Por favor selecciona un equipo")
 # ==================================
 # FUNCIONES
 # ==================================
