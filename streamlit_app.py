@@ -1,11 +1,8 @@
 import streamlit as st
 import pandas as pd
 import gspread
-
-
 from gspread.utils import rowcol_to_a1
 from google.oauth2.service_account import Credentials
-
 import time
 
 # ==================================
@@ -42,6 +39,7 @@ sheet = spreadsheet.worksheet("RESPUESTAS")
 sheet_partidos = spreadsheet.worksheet("PARTIDOS")
 sheet_config = spreadsheet.worksheet("CONFIG")
 sheet_resultados = spreadsheet.worksheet("RESULTADOS")
+
 # ==================================
 # CARGA
 # ==================================
@@ -97,6 +95,7 @@ if nombre not in usuarios_actuales:
     st.rerun()
 
 st.info(f"Hola {nombre}")
+
 # ==================================
 # RANKING
 # ==================================
@@ -108,11 +107,15 @@ def calcular_ranking():
         str(r["ID"]).strip(): str(r["Resultado"]).strip().upper()
         for r in data["resultados"] if r["Resultado"]
     }
+    
+    # Obtener el campeón real de la hoja CONFIG
+    campeon_real = config.get("CAMPEON_REAL", "").strip().upper()
 
     for _, fila in df.iterrows():
 
         aciertos = 0
         total = 0
+        puntos_extra = 0
 
         for partido, real in resultados.items():
 
@@ -127,10 +130,19 @@ def calcular_ranking():
                     aciertos += 1
 
         porcentaje = round((aciertos / total) * 100, 2) if total else 0
+        
+        # Verificar si acertó el campeón (5 puntos extra)
+        if "CAMPEON" in df.columns and campeon_real:
+            campeon_elegido = fila.get("CAMPEON")
+            if pd.notna(campeon_elegido) and str(campeon_elegido).strip().upper() == campeon_real:
+                puntos_extra = 5
 
-        ranking.append((fila["Nombre"], aciertos, total, porcentaje))
+        # Total de puntos = aciertos + puntos_extra
+        total_puntos = aciertos + puntos_extra
 
-    ranking.sort(key=lambda x: x[1], reverse=True)
+        ranking.append((fila["Nombre"], aciertos, total, porcentaje, puntos_extra, total_puntos))
+
+    ranking.sort(key=lambda x: x[5], reverse=True)
 
     return ranking
 
@@ -139,10 +151,22 @@ with st.expander("🏆 Ranking"):
     ranking = calcular_ranking()
 
     if ranking:
-        st.dataframe(pd.DataFrame(
+        df_ranking = pd.DataFrame(
             ranking,
-            columns=["Nombre", "Aciertos", "Total", "%"]
-        ))
+            columns=["Nombre", "Aciertos", "Total", "%", "Extra", "Total Puntos"]
+        )
+        st.dataframe(
+            df_ranking,
+            column_config={
+                "Nombre": st.column_config.TextColumn("Nombre"),
+                "Aciertos": st.column_config.NumberColumn("Aciertos"),
+                "Total": st.column_config.NumberColumn("Total"),
+                "%": st.column_config.NumberColumn("%"),
+                "Extra": st.column_config.NumberColumn("Extra (Campeón)", help="5 puntos extra por acertar el campeón"),
+                "Total Puntos": st.column_config.NumberColumn("Total Puntos", help="Aciertos + Extra")
+            },
+            hide_index=True
+        )
     else:
         st.info("Sin resultados todavía")
 
@@ -153,15 +177,16 @@ with st.expander("🏆 Elige tu Campeón", expanded=True):
     
     # Verificar si el usuario ya eligió campeón
     campeon_actual = ""
-    ya_eligio=False
+    ya_eligio = False
     
     if not df.empty and "CAMPEON" in df.columns:
         fila_usuario = df[df["Nombre"].str.upper() == nombre]
         if not fila_usuario.empty:
             campeon_actual = fila_usuario.iloc[0].get("CAMPEON")
             if pd.notna(campeon_actual) and str(campeon_actual).strip() != "":
+                ya_eligio = True
                 st.success(f"🏆 Tu campeón elegido: {campeon_actual}")
-                st.info("Si deseas cambiarlo, selecciona otro equipo abajo.")
+                st.info("✅ Ya has elegido tu campeón. No puedes cambiarlo.")
     
     # Lista de los 8 clasificados a cuartos de final
     equipos_cuartos = [
@@ -187,11 +212,15 @@ with st.expander("🏆 Elige tu Campeón", expanded=True):
         "Selecciona tu campeón:",
         options=opciones,
         index=indice_actual,
-        key="select_campeon"
+        key="select_campeon",
+        disabled=ya_eligio  # Deshabilitar el selectbox si ya eligió
     )
     
-    # Botón para guardar
-    if st.button("💾 Guardar Campeón", key="btn_guardar_campeon", use_container_width=True):
+    # Botón para guardar (deshabilitado si ya eligió)
+    if st.button("💾 Guardar Campeón", 
+                 key="btn_guardar_campeon", 
+                 use_container_width=True,
+                 disabled=ya_eligio):  # Deshabilitar el botón si ya eligió
         if equipo_seleccionado and equipo_seleccionado != "Selecciona un equipo...":
             try:
                 # Guardar en mayúsculas
@@ -230,14 +259,12 @@ with st.expander("🏆 Elige tu Campeón", expanded=True):
                 cargar_todo.clear()
                 
                 st.success(f"✅ ¡Has elegido a {equipo_guardar} como campeón!")
-                time.sleep(1)
                 st.rerun()
             except Exception as e:
                 st.error(f"Error al guardar: {e}")
                 st.error("Verifica que la columna se llame exactamente 'CAMPEON' en la hoja RESPUESTAS")
         else:
             st.warning("Por favor selecciona un equipo")
-
 
 # ==================================
 # FUNCIONES
@@ -363,8 +390,6 @@ def render_partido(pid, a, b):
     # 🔥 Mostrar mensaje de guardado si existe en session_state
     if f"guardado_{pid}" in st.session_state:
         st.success(f"✅ Guardado: {st.session_state[f'guardado_{pid}']}")
-        # Eliminar el mensaje después de mostrarlo para que no se acumule
-        # del st.session_state[f"guardado_{pid}"]
 
     if es_eliminatoria:
         # PARTIDOS 73+: SOLO 2 BOTONES (A y B) - SIN EMPATE
